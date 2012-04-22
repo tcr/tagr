@@ -1,3 +1,17 @@
+###
+
+Tagr, HTML manipulation for webapps.
+
+TODO
+smaller syntax for manipulation
+
+###
+
+# EventEmitter
+# ------------
+
+# Standard shim to replicate Node.js behavior.
+
 class EventEmitter
     listeners: (type) ->
         if @hasOwnProperty.call (if @_events? then @_events else @_events = {}), type then @_events[type] else @_events[type] = []
@@ -20,22 +34,9 @@ class EventEmitter
     _maxListeners: 10
     setMaxListeners: (@_maxListeners) ->
 
-this.tagr = tagr =
-    use: (el) -> new Tagr(el)
-    create: (tag, attrs = {}) ->
-        e = document.createElement tag
-        e.setAttribute(k, v) for k, v of attrs    
-        return new Tagr(e)
-    parse: (str) ->
-        return str if typeof str == 'string'
-        [tag, attrs, args...] = str
-        e = tagr.create tag, attrs
-        for arg in args
-            e.push tagr.parse arg
-        return e
-    guid: 0
+# Obligatory DomReady hander.
 
-tagr.ready = do ->
+addDomReadyListener = do ->
     loaded = /^loade|c/.test(document.readyState)
 
     fns = []
@@ -64,44 +65,114 @@ tagr.ready = do ->
         , false
         return (fn) -> if loaded then fn() else fns.push(fn)
 
-Stylesheet = (media = 'all') ->
+# HTML Object generics. Mimicks the handy APIs of the
+# Audio, Image, Video, etc. elements.
+
+@Stylesheet = Stylesheet = (media = 'all') ->
     s = document.createElement 'style'
     s.type = 'text/css'
     s.media = media
     document.getElementsByTagName('head')[0].appendChild s
     return s
 
-Script = ->
+@Script = Script = ->
     s = document.createElement 'script'
     s.src = 'about:blank'
     document.getElementsByTagName('head')[0].appendChild s
     return s
 
-HeadCache = do ->
-    hc = {}
+# DOM Map
+# -------
 
-    sCache = {}
-    hc.getStylesheet = (media = 'all') ->
-        return sCache[media] if sCache[media]?
-        s = new Stylesheet(media)
-        return sCache[media] = (s.sheet or s.styleSheet)
+# Unique property. Use IE's .uniqueId, or use expando for other browsers.
+getElementUUID = do ->
+    uuid = 0
+    return (elem) -> elem.uniqueId ? (elem.uniqueId = uuid++)
 
-    #TODO scripts?
+# Map of values/objects to DOM nodes without leaking memory. Data should
+# manually be cleared using .clean(elem) when a node is no longer in use.
 
-    return hc
+class DomMap
 
-checkNode = (e) ->
-    if typeof e == 'string' then return document.createTextNode e
-    if e.node.parentNode then throw new Error 'Must remove element before appending elsewhere.'
-    return e.node
+    isEmptyObject = (obj) -> for key of obj then return no; return yes
+
+    constructor: ->
+        @cache = {}
+
+    set: (elem, name, value) ->
+        (@cache[getElementUUID(elem)] ?= {})[name] = value
+    get: (elem, name) ->
+        if (data = @cache[getElementUUID(elem)])? then data[name]
+        else null
+
+    remove: (elem, name) ->
+        if obj = @cache[getElementUUID(elem)]
+            delete obj[name]
+            if isEmptyObject(obj)
+                delete @cache[getElementUUID(elem)]
+        return null
+
+    clean: (elem) -> delete @cache[getElementUUID(elem)]
+
+# Tagr model
+# ----------
+
+# Default namespace. tagr() defaults to tagr.create, creating a new
+# element.
+
+@tagr = tagr = (args...) -> tagr.create args...
+
+# Configuration.
+tagr.IGNORE_ATTRS = ['data-tagr']
+
+# Create a new Tagr object.
+tagr.create = (tag, attrs = {}) ->
+    e = document.createElement tag
+    e.setAttribute(k, v) for k, v of attrs    
+    return new Tagr(e)
+
+tagr.parse = (str) ->
+    return str if typeof str == 'string'
+    [tag, attrs, args...] = str
+    e = tagr.create tag, attrs
+    e.append (tagr.parse(arg) for arg in args)...
+    return e
+
+# Convience for DOM loading.
+tagr.ready = addDomReadyListener
+
+# DOM <-> tagr object mapping.
+tagr._map = new DomMap()
+
+# tagr.getContext creates an element context.
+# Only Tagr methods should be used on the children of this context.
+tagr.getContext = (node) ->
+    throw new Error('Cannot create Tagr context from non-element') if node.nodeType != 1
+    unless (obj = tagr._map.get(node, 'tagr'))?
+        tagr._map.set node, 'tagr', (obj = new Tagr(node))
+    return obj
+
+tagr.getWrapper = (node) ->
+    throw new Error('Cannot create Tagr context of non-element') if node.nodeType != 1
+    unless (obj = tagr._map.get(node, 'tagr'))?
+        throw new Error('No Tagr wrapper exists for this element.')
+    return obj
+
+# document.write a new context, avoiding tagr.ready()
+tagr.writeContext = (tag = 'div', attrs = {}) ->
+    document.write("<#{tag}></#{tag}>")
+    list = document.getElementsByTagName('*')
+    return tagr.getContext(list[list.length-1]).setAttrs attrs
+
+# Tagr wrapper objects map 1:1 with the DOM.
     
 class Tagr extends EventEmitter
+
     constructor: (@node, @parent) ->
-        @node.setAttribute 'data-tagr', String (@guid = tagr.guid++)
         @tag = @node.nodeName.toLowerCase()
         # Attributes and classes.
         @attrs = {}
-        for attr in @node.attributes
+        for attr in @node.attributes when attr not in tagr.IGNORE_ATTRS
             @attrs[attr.name] = attr.value
         @classes = (@node.className.match(/\S+/g) or [])
         # Styles.
@@ -111,21 +182,30 @@ class Tagr extends EventEmitter
         @length = @node.childNodes.length
         for c, i in @node.childNodes
             @[i] = (if c.nodeType == 1 then new Tagr(c, @) else c.nodeValue)
-        # Don't hog memory until we do
-        #@_detach()
-    _detach: -> @node = null
-    _attach: -> @node = Sizzle("[data-tagr=\"#{@guid}\"]")[0]
+
+    # Associate DOM node with Tagr object, for querying. We only need
+    # this association when elements are attached to the document.
+    _attach: (@parent) -> tagr._map.set @node, 'tagr', this
+    _detach: -> @parent = null; tagr._map.remove @node, 'tagr'
+
+    # Create a data attribute with the element UUID. This is used only
+    # for styling.
+    _ensureAttrUuid: ->
+        if not @node.hasAttribute('data-tagr')
+            @node.setAttribute 'data-tagr', getElementUUID(@node)
+        @node.getAttribute('data-tagr')
 
     # Children.
     splice: (i, del, add...) ->
         if i < 0 or isNaN(i) then throw 'Invalid index'
         # Remove nodes.
         if del
-            for c in [0...del]
-                #@emit 'removeChild', @[i+c]
-                @[i+c].parent = null
+            ret = for j in [0...del]
+                c = @[i+j]
                 @node.removeChild @node.childNodes[i]
-        ret = (@[i+j] for j in [0...del])
+                if typeof c == 'object' then c._detach()
+                delete @[i+j]
+                c
         # Shift nodes in array index.
         if del > add.length
             for j in [i + del...@length]
@@ -137,39 +217,71 @@ class Tagr extends EventEmitter
         if add.length
             right = @node.childNodes[i]
             for c, j in add
-                if typeof c == 'object' and c?.constructor == Array then c = tagr.parse(c)
-                #@emit 'insertChild', c
-                @node.insertBefore checkNode(c), right
+                # Get valid DOM node.
+                if typeof c == 'object' and c?.constructor == Array then c = tagr.parse(c); n = c.node
+                else if typeof c == 'string' then n = document.createTextNode(c)
+                else n = c.node
+                if n.parentNode then throw new Error 'Must remove element before appending elsewhere.'
+                # Insert node, update Tagr.
+                @node.insertBefore n, right
+                if typeof c == 'object' then c._attach(this)
                 @[i+j] = c
-                c.parent = this
         @length += (-del) + add.length
         return ret
-    push: (e) -> @splice(@length, 0, e); @length
-    pop: -> @splice(@length-1, 1)[0]
-    unshift: (e) -> @splice(0, 0, e); @length
-    shift: -> @splice(0, 1)[0]
-    remove: (e) -> @splice @indexOf(e), 1
-    insert: (i, e) -> @splice i, 0, e
-    empty: -> @splice 0, @length
-    indexOf: (e) -> [].indexOf.call(this, e)
+
+    append: (args...) -> @splice(@length, 0, args...); return this
+    prepend: (args...) -> @splice(0, 0, args...); return this
+    remove: (i) -> @splice i, 1; return this
+    insert: (i, e) -> @splice i, 0, e; return this 
+    empty: -> @splice 0, @length; return this
+
+    appendSelf: (e) -> e.append(this); return this
+    prependSelf: (e) -> e.prepend(this); return this
+    removeSelf: -> @parent.remove @parent.indexOf(this); return this
+    insertSelf: (parent, i) -> parent.insert i, this; return this
+    indexOfSelf: -> @parent.indexOf this
 
     # Match children
-    match: (match) -> new TagrList @node, match
+    select: (match) -> new TagrList this, match
+    # Shorthand for select('selector').find()
+    find: (match) -> @select(match).find()
+
+    getDomProperty = do ->
+        props = 
+            'class': 'className'
+        (name) -> props[name] ? name
 
     # Attributes.
     setAttr: (name, v) ->
         if name == 'class' then @classes = (v.match(/\S+/g) or [])
-        @node.setAttribute(name, v); @attrs[name] = v
+        #@node.setAttribute(name, v); @attrs[name] = v
+        @node[getDomProperty(name)] = @attrs[name] = v;
+        return this
+    setAttrs: (map) ->
+        for k, v of map then @setAttr k, v
+        return this
+
     # Classes.
     setClass: (name, toggle = yes) ->
-        if toggle then @setAttr 'class', @classes.concat([name]).join ' '
-        else @setAttr 'class', (c for c in @classes when c != name).join ' '
+        if toggle
+            @classes = @classes.concat([name]) unless name in @classes
+            @setAttr 'class', @classes.join ' '
+        else
+            @classes = (c for c in @classes when c != name)
+            @setAttr 'class', @classes.join ' '
+        return this
+    setClasses: (map) ->
+        for k, v of map then @setClass k, v
+        return this
 
     # Style
-    setStyle: (args...) ->
-        if args.length == 2 then [k, v] = args; args = {}; args[k] = v
-        else args = args[0]
-        for k, v of args then @style[k] = @node.style[k] = v
+    setStyle: (k, v) ->
+        throw new Exception('setStyle must be called with a value.') unless v
+        @style[k] = @node.style[k] = v
+        return this
+    setStyles: (map) ->
+        for k, v of map then @setStyle k, v
+        return this
 
     # Events
     addListener: (type, f) ->
@@ -179,29 +291,66 @@ class Tagr extends EventEmitter
     # JSON
     toJSON: -> [@tag, @attrs, ((if typeof x == 'string' then x else x.toJSON()) for x in @)...]
 
+    # Context HTML
+    loadHTML: (html) -> @empty(); @node.innerHTML = html; @constructor(@node, @parent)
+    toHTML: -> @node.innerHTML
+
+    # Utility methods.
+        
+    # Significant whitespace is awesome.
+    useWhitespace: ->
+        # Like CSS properties, invalid values must cascade. We must
+        # set each property individually, rather than use @setStyles()
+        @setStyle 'white-space', 'pre'            # IE6-8
+        @setStyle 'word-wrap', 'break-word'       # IE 5.5+
+        @setStyle 'white-space', 'pre-wrap'       # CSS3
+        @setStyle 'white-space', '-moz-pre-wrap'  # Mozilla
+        @setStyle 'white-space', '-pre-wrap'      # Opera 4-6
+        @setStyle 'white-space', '-o-pre-wrap'    # Opera 7+
+
+    # Prevent inadvertent selections.
+    setSelectable: ->
+        @setStyle
+
+# Transplant array functions onto Tagr objects.
+for n in ['forEach', 'slice', 'map', 'indexOf']
+    do (n) ->
+        Tagr::[n] = (args...) -> Array::[n].apply this, args
+
+# A dynamic query matching a CSS selector. Listeners and styles can be
+# set to the dynamic list, or we can .find() the current list of
+# matches.
+
 class TagrList extends EventEmitter
-    constructor: (@node, @match) ->
-        @length = 0
-        for el, i in Sizzle(match, @node)
-            @[i] = new Tagr el
-            @length++
+
+    # Stylesheet cache.
+    sCache = {}
+    getStylesheet = (media = 'all') ->
+        return sCache[media] if sCache[media]?
+        s = new Stylesheet(media)
+        return sCache[media] = (s.sheet or s.styleSheet)
+
+    constructor: (@ctx, @match) ->
+
+    find: -> new Tagr(el) for el in Sizzle(match, @ctx.node)
 
     addListener: (type, f) ->
-        @node.addEventListener type, ((e) =>
-            if Sizzle.matches("[data-tagr='#{@node.getAttribute('data-tagr')}'] #{@match}", [e.target]).length
-                f.call new Tagr(e.target), e
-            ), false
+        @ctx.node.addEventListener type, ((e) =>
+            matches = Sizzle("#{@match}", @ctx.node)
+            n = e.target
+            while n != @ctx.node and n
+                if n in matches
+                    f.call tagr.getWrapper(n), e
+                n = n.parentNode
+        ), false
         return super type, f
 
-    setStyle: (args...) ->
-        s = HeadCache.getStylesheet()
-        if args.length == 2 then [k, v] = args; args = {}; args[k] = v
-        else args = args[0]
-        for k, v of args then s.insertRule "[data-tagr='#{@node.getAttribute('data-tagr')}'] #{@match} { #{k}: #{v} }", s.cssRules.length
-
-# Transplant array functions.
-for n in ['forEach', 'slice'] when Array::[n]?
-    for Cls in [Tagr, TagrList]
-        Cls::[n] = Array::[n]
-
-new Script('https://raw.github.com/jquery/sizzle/master/sizzle.js')
+    setStyle: (k, v) ->
+        throw new Exception('setStyle must be called with a value.') unless v
+        selector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@match}"
+        s = getStylesheet()
+        s.insertRule "#{selector} { #{k}: #{v} }", s.cssRules.length
+        return this
+    setStyles: (map) ->
+        for k, v of map then @setStyle k, v
+        return this

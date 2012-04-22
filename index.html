@@ -3,56 +3,28 @@
 <html>
 <head>
 	<title>tagr demo</title>
-	<style>
-body {
-	white-space: pre; 			 /* IE6-8 */
-word-wrap: break-word;       /* Internet Explorer 5.5+ */
-white-space: pre-wrap;       /* css-3 */
-white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-white-space: -pre-wrap;      /* Opera 4-6 */
-white-space: -o-pre-wrap;    /* Opera 7 */
-}
-</style>
+<script src="sizzle.js"></script>
 <script src="tagr.js"></script>
-<script>
-
-tagr.ready(function() {
-  var body = tagr.use(document.body);
-  body.empty();
-
-  // Set live styles and events.
-  // We can set styles to match all children of the body,
-  // even though they haven't been inserted yet.
-  body.match('p').setStyle('background', '#aaf');
-  body.match('p.selected').setStyle({'border-left': '5px solid red', 'padding-left': '10px'});
-  // Attach event handlers to future elements we insert.
-  // These set a 'selected' class on an element.
-  var selected = null;
-  body.match('p').on('click', function(e) {
-  	if (selected) selected.setClass('selected', false);
-  	(selected = this).setClass('selected', true);
-  });
-
-  // Create a paragraph. Do some array manipulation on it.
-  body.push(['p', {}]); // We can use tagr.create('p'), or a JSON literal.
-  var p = body[0]; // Children are array indexed (but array indices are read-only).
-  p.push('one'); // Push string literals.
-  p.push('!!!!!'); // Or elements.
-  p.push('?????');
-  p.push(['u', {}, 'three!']);
-  p.splice(1, 1, 'two'); // Then replace some elements.
-  p.remove(p[2]); // Remove an element in place.
-
-  // Add some more paragraph literals.
-  body.push(['p', {}, 'Try clicking\non one of these\nelements!']);
-  body.push(['p', {}, 'And then another one!']);
-
-  // Tagr maps to JSON, and can consume JSON. Neat!
-  console.log('Current JSON: ', body.toJSON());
-  return console.log('Copied context:', tagr.parse(body.toJSON()));
-});
-
-</script>
+<style>
+body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
+</style>
 </head>
-<body></body>
+<body>
+<h1>Tagr Demo</h1>
+
+<p>Tagr modules are self-contained, by design. It's up to the author to properly
+separate their models, views, and controllers. The upshot of Tagr modules is that
+you are working entirely in the language of JavaScript: no more maintaining files
+in various languages, where widget code becomes very distant from each other.</p>
+
+<script src="todo.js"></script>
+
+<p>To embed this TODO list, all we had to do was include:</p>
+
+<blockquote>
+	<pre>&lt;script src=&quot;todo.js&quot;&gt;&lt;/script&gt;</pre>
+</blockquote>
+
+<p>Tagr is MIT licensed.</p>
+</body>
 </html>
