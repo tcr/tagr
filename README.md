@@ -19,7 +19,8 @@ Tagr ensures you're never interact with the DOM directly. Instead, work with
 JSON, define your own relative stylesheets and events, and build up widgets
 to use in your application.
 
-**TODO** document this. But hey, check out `todo.js` for a demo
+**TODO** document this. But hey, check out `todo.js` for a demo. Also,
+`tagr.min.js` probably doesn't work yet. Use `tagr.js` for now.
 
 ## License
 

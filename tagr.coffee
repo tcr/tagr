@@ -1,7 +1,5 @@
-###
-
-Tagr, HTML manipulation for webapps.
-
+###*
+* @license Tagr, HTML manipulation for webapps. MIT Licensed.
 ###
 
 fromCamelCase = -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
@@ -94,7 +92,9 @@ getElementUUID = do ->
 
 class DomMap
 
-	isEmptyObject = (obj) -> for key of obj then return no; return yes
+	isEmptyObject = (obj) ->
+		for key of obj then return no
+		return yes
 
 	constructor: ->
 		@cache = {}
