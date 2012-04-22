@@ -11,7 +11,7 @@ styles, event handlers, and markup--and run them on the client. Tagr
 serializes to HTML and CSS, so you get fast rendering times, with the
 flexibility of Tagr's clean and extensible API.
 
-Tagr, minified, is just 10kb.
+Tagr, minified and gzipped, is just 10kb.
 
 ## How it works
 
