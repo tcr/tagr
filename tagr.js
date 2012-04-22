@@ -3,18 +3,25 @@
 /*
 
 Tagr, HTML manipulation for webapps.
-
-TODO
-smaller syntax for manipulation
 */
 
 
 (function() {
-  var DomMap, EventEmitter, Script, Stylesheet, Tagr, TagrList, addDomReadyListener, getElementUUID, n, tagr, _fn, _i, _len, _ref,
+  var DomMap, EventEmitter, Script, Stylesheet, Tagr, TagrList, TagrQuery, addDomReadyListener, fromCamelCase, getElementUUID, n, tagr, toCamelCase, _fn, _i, _len, _ref,
     __slice = [].slice,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+  fromCamelCase = function() {
+    return name.replace(/([A-Z])/g, "-$1").toLowerCase();
+  };
+
+  toCamelCase = function() {
+    return name.toLowerCase().replace(/\-[a-z]/g, (function(s) {
+      return s[1].toUpperCase();
+    }));
+  };
 
   EventEmitter = (function() {
 
@@ -240,6 +247,47 @@ smaller syntax for manipulation
 
   tagr.IGNORE_ATTRS = ['data-tagr'];
 
+  tagr.ATTR_PROPS = {
+    "for": "htmlFor",
+    accesskey: "accessKey",
+    codebase: "codeBase",
+    frameborder: "frameBorder",
+    framespacing: "frameSpacing",
+    nowrap: "noWrap",
+    maxlength: "maxLength",
+    "class": "className",
+    readonly: "readOnly",
+    longdesc: "longDesc",
+    tabindex: "tabIndex",
+    rowspan: "rowSpan",
+    colspan: "colSpan",
+    enctype: "encType",
+    ismap: "isMap",
+    usemap: "useMap",
+    cellpadding: "cellPadding",
+    cellspacing: "cellSpacing"
+  };
+
+  tagr.ATTR_WATCH = {
+    value: function(t) {
+      var update;
+      update = function() {
+        return t.attrs.value = t._node.value;
+      };
+      t.on('input', update);
+      return t.on('propertychange', function(e) {
+        if (e.propertyName === 'value') {
+          return update();
+        }
+      });
+    },
+    checked: function(t) {
+      return t.on('change', function() {
+        return t.attrs.checked = t._node.checked;
+      });
+    }
+  };
+
   tagr.create = function(tag, attrs) {
     var e, k, v;
     if (attrs == null) {
@@ -311,56 +359,62 @@ smaller syntax for manipulation
     return tagr.getContext(list[list.length - 1]).setAttrs(attrs);
   };
 
-  Tagr = (function(_super) {
-    var getDomProperty;
+  tagr.Tagr = Tagr = (function(_super) {
 
     __extends(Tagr, _super);
 
     Tagr.name = 'Tagr';
 
-    function Tagr(node, parent) {
-      var attr, c, i, k, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
-      this.node = node;
+    function Tagr(_node, parent) {
+      var attr, c, i, k, v, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
+      this._node = _node;
       this.parent = parent;
-      this.tag = this.node.nodeName.toLowerCase();
+      this.tag = this._node.nodeName.toLowerCase();
       this.attrs = {};
-      _ref = this.node.attributes;
+      _ref = this._node.attributes;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         attr = _ref[_i];
         if (__indexOf.call(tagr.IGNORE_ATTRS, attr) < 0) {
           this.attrs[attr.name] = attr.value;
         }
       }
-      this.classes = this.node.className.match(/\S+/g) || [];
-      this.style = {};
-      _ref1 = this.node.style;
-      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-        k = _ref1[_j];
-        this.style[k] = this.node.style[k];
+      _ref1 = tagr.ATTR_WATCH;
+      for (k in _ref1) {
+        v = _ref1[k];
+        if (this._node[(_ref2 = tagr.ATTR_PROPS[k]) != null ? _ref2 : k] != null) {
+          v(this);
+        }
       }
-      this.length = this.node.childNodes.length;
-      _ref2 = this.node.childNodes;
-      for (i = _k = 0, _len2 = _ref2.length; _k < _len2; i = ++_k) {
-        c = _ref2[i];
-        this[i] = (c.nodeType === 1 ? new Tagr(c, this) : c.nodeValue);
+      this.classes = this._node.className.match(/\S+/g) || [];
+      this.style = {};
+      _ref3 = this._node.style;
+      for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
+        k = _ref3[_j];
+        this.style[k] = this._node.style[k];
+      }
+      this.length = this._node.childNodes.length;
+      _ref4 = this._node.childNodes;
+      for (i = _k = 0, _len2 = _ref4.length; _k < _len2; i = ++_k) {
+        c = _ref4[i];
+        this[i] = (c.nodeType === 1 ? new Tagr(c, this) : c._nodeValue);
       }
     }
 
     Tagr.prototype._attach = function(parent) {
       this.parent = parent;
-      return tagr._map.set(this.node, 'tagr', this);
+      return tagr._map.set(this._node, 'tagr', this);
     };
 
     Tagr.prototype._detach = function() {
       this.parent = null;
-      return tagr._map.remove(this.node, 'tagr');
+      return tagr._map.remove(this._node, 'tagr');
     };
 
     Tagr.prototype._ensureAttrUuid = function() {
-      if (!this.node.hasAttribute('data-tagr')) {
-        this.node.setAttribute('data-tagr', getElementUUID(this.node));
+      if (!this._node.hasAttribute('data-tagr')) {
+        this._node.setAttribute('data-tagr', getElementUUID(this._node));
       }
-      return this.node.getAttribute('data-tagr');
+      return this._node.getAttribute('data-tagr');
     };
 
     Tagr.prototype.splice = function() {
@@ -375,7 +429,7 @@ smaller syntax for manipulation
           _results = [];
           for (j = _i = 0; 0 <= del ? _i < del : _i > del; j = 0 <= del ? ++_i : --_i) {
             c = this[i + j];
-            this.node.removeChild(this.node.childNodes[i]);
+            this._node.removeChild(this._node.childNodes[i]);
             if (typeof c === 'object') {
               c._detach();
             }
@@ -396,21 +450,21 @@ smaller syntax for manipulation
         }
       }
       if (add.length) {
-        right = this.node.childNodes[i];
+        right = this._node.childNodes[i];
         for (j = _k = 0, _len = add.length; _k < _len; j = ++_k) {
           c = add[j];
           if (typeof c === 'object' && (c != null ? c.constructor : void 0) === Array) {
             c = tagr.parse(c);
-            n = c.node;
+            n = c._node;
           } else if (typeof c === 'string') {
             n = document.createTextNode(c);
           } else {
-            n = c.node;
+            n = c._node;
           }
           if (n.parentNode) {
             throw new Error('Must remove element before appending elsewhere.');
           }
-          this.node.insertBefore(n, right);
+          this._node.insertBefore(n, right);
           if (typeof c === 'object') {
             c._attach(this);
           }
@@ -470,34 +524,24 @@ smaller syntax for manipulation
       return this;
     };
 
-    Tagr.prototype.indexOfSelf = function() {
+    Tagr.prototype.index = function() {
       return this.parent.indexOf(this);
     };
 
     Tagr.prototype.select = function(match) {
-      return new TagrList(this, match);
+      return new TagrQuery(this, match);
     };
 
     Tagr.prototype.find = function(match) {
       return this.select(match).find();
     };
 
-    getDomProperty = (function() {
-      var props;
-      props = {
-        'class': 'className'
-      };
-      return function(name) {
-        var _ref;
-        return (_ref = props[name]) != null ? _ref : name;
-      };
-    })();
-
     Tagr.prototype.setAttr = function(name, v) {
+      var _ref;
       if (name === 'class') {
         this.classes = v.match(/\S+/g) || [];
       }
-      this.node[getDomProperty(name)] = this.attrs[name] = v;
+      this._node[(_ref = tagr.ATTR_PROPS[name]) != null ? _ref : name] = this.attrs[name] = v;
       return this;
     };
 
@@ -548,10 +592,15 @@ smaller syntax for manipulation
     };
 
     Tagr.prototype.setStyle = function(k, v) {
-      if (!v) {
-        throw new Exception('setStyle must be called with a value.');
+      var val, _i, _len, _ref;
+      if (v == null) {
+        throw new Exception('setStyle must be called with a value. Call using an empty string.');
       }
-      this.style[k] = this.node.style[k] = v;
+      _ref = (typeof v === 'object' ? v : [v]);
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        val = _ref[_i];
+        this.style[k] = this._node.style[k] = val;
+      }
       return this;
     };
 
@@ -565,10 +614,18 @@ smaller syntax for manipulation
     };
 
     Tagr.prototype.addListener = function(type, f) {
-      var _this = this;
-      this.node.addEventListener(type, (function(e) {
-        return _this.emit(type, e);
-      }), false);
+      var _base, _base1,
+        _this = this;
+      if (typeof (_base = this._node).addEventListener === "function") {
+        _base.addEventListener(type, (function(e) {
+          return _this.emit(type, e);
+        }), false);
+      }
+      if (typeof (_base1 = this._node).attachEvent === "function") {
+        _base1.attachEvent('on' + type((function() {
+          return _this.emit(type, window.event);
+        })));
+      }
       return Tagr.__super__.addListener.call(this, type, f);
     };
 
@@ -585,27 +642,37 @@ smaller syntax for manipulation
         }).call(this)));
     };
 
-    Tagr.prototype.loadHTML = function(html) {
-      this.empty();
-      this.node.innerHTML = html;
-      return this.constructor(this.node, this.parent);
+    Tagr.prototype.useWhitespace = function(toggle) {
+      if (toggle == null) {
+        toggle = true;
+      }
+      if (toggle) {
+        return this.setStyles({
+          'white-space': ['pre', 'pre-wrap', '-moz-pre-wrap', '-pre-wrap', '-o-pre-wrap'],
+          'word-wrap': 'break-word'
+        });
+      } else {
+        return this.setStyles({
+          'white-space': '',
+          'word-wrap': ''
+        });
+      }
     };
 
-    Tagr.prototype.toHTML = function() {
-      return this.node.innerHTML;
-    };
-
-    Tagr.prototype.useWhitespace = function() {
-      this.setStyle('white-space', 'pre');
-      this.setStyle('word-wrap', 'break-word');
-      this.setStyle('white-space', 'pre-wrap');
-      this.setStyle('white-space', '-moz-pre-wrap');
-      this.setStyle('white-space', '-pre-wrap');
-      return this.setStyle('white-space', '-o-pre-wrap');
-    };
-
-    Tagr.prototype.setSelectable = function() {
-      return this.setStyle;
+    Tagr.prototype.setSelectable = function(toggle) {
+      var val;
+      if (toggle == null) {
+        toggle = true;
+      }
+      val = toggle ? '' : 'none';
+      return this.setStyles({
+        '-webkit-touch-callout': val,
+        '-webkit-user-select': val,
+        '-khtml-user-select': val,
+        '-moz-user-select': val,
+        '-ms-user-select': val,
+        'user-select': val
+      });
     };
 
     return Tagr;
@@ -625,12 +692,12 @@ smaller syntax for manipulation
     _fn(n);
   }
 
-  TagrList = (function(_super) {
+  tagr.TagrQuery = TagrQuery = (function(_super) {
     var getStylesheet, sCache;
 
-    __extends(TagrList, _super);
+    __extends(TagrQuery, _super);
 
-    TagrList.name = 'TagrList';
+    TagrQuery.name = 'TagrQuery';
 
     sCache = {};
 
@@ -646,14 +713,14 @@ smaller syntax for manipulation
       return sCache[media] = s.sheet || s.styleSheet;
     };
 
-    function TagrList(ctx, match) {
+    function TagrQuery(ctx, match) {
       this.ctx = ctx;
       this.match = match;
     }
 
-    TagrList.prototype.find = function() {
+    TagrQuery.prototype.find = function() {
       var el, _j, _len1, _ref1, _results;
-      _ref1 = Sizzle(match, this.ctx.node);
+      _ref1 = Sizzle(match, this.ctx._node);
       _results = [];
       for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
         el = _ref1[_j];
@@ -662,14 +729,14 @@ smaller syntax for manipulation
       return _results;
     };
 
-    TagrList.prototype.addListener = function(type, f) {
+    TagrQuery.prototype.addListener = function(type, f) {
       var _this = this;
-      this.ctx.node.addEventListener(type, (function(e) {
+      this.ctx._node.addEventListener(type, (function(e) {
         var matches, _results;
-        matches = Sizzle("" + _this.match, _this.ctx.node);
+        matches = Sizzle("" + _this.match, _this.ctx._node);
         n = e.target;
         _results = [];
-        while (n !== _this.ctx.node && n) {
+        while (n !== _this.ctx._node && n) {
           if (__indexOf.call(matches, n) >= 0) {
             f.call(tagr.getWrapper(n), e);
           }
@@ -677,10 +744,10 @@ smaller syntax for manipulation
         }
         return _results;
       }), false);
-      return TagrList.__super__.addListener.call(this, type, f);
+      return TagrQuery.__super__.addListener.call(this, type, f);
     };
 
-    TagrList.prototype.setStyle = function(k, v) {
+    TagrQuery.prototype.setStyle = function(k, v) {
       var s, selector;
       if (!v) {
         throw new Exception('setStyle must be called with a value.');
@@ -691,7 +758,7 @@ smaller syntax for manipulation
       return this;
     };
 
-    TagrList.prototype.setStyles = function(map) {
+    TagrQuery.prototype.setStyles = function(map) {
       var k, v;
       for (k in map) {
         v = map[k];
@@ -700,8 +767,136 @@ smaller syntax for manipulation
       return this;
     };
 
-    return TagrList;
+    return TagrQuery;
 
   })(EventEmitter);
+
+  tagr.TagrList = TagrList = (function() {
+
+    TagrList.name = 'TagrList';
+
+    function TagrList() {
+      var args, i, _j, _len1;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      this.length = args.length;
+      for (_j = 0, _len1 = args.length; _j < _len1; _j++) {
+        i = args[_j];
+        this[i] = args[i];
+      }
+    }
+
+    TagrList.prototype.setAttr = function() {
+      var args, t, _j, _len1, _results;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      _results = [];
+      for (_j = 0, _len1 = this.length; _j < _len1; _j++) {
+        t = this[_j];
+        _results.push(t.setAttr.apply(t, args));
+      }
+      return _results;
+    };
+
+    TagrList.prototype.setAttrs = function() {
+      var args, t, _j, _len1, _results;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      _results = [];
+      for (_j = 0, _len1 = this.length; _j < _len1; _j++) {
+        t = this[_j];
+        _results.push(t.setAttrs.apply(t, args));
+      }
+      return _results;
+    };
+
+    TagrList.prototype.setStyle = function() {
+      var args, t, _j, _len1, _results;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      _results = [];
+      for (_j = 0, _len1 = this.length; _j < _len1; _j++) {
+        t = this[_j];
+        _results.push(t.setStyle.apply(t, args));
+      }
+      return _results;
+    };
+
+    TagrList.prototype.setStyles = function() {
+      var args, t, _j, _len1, _results;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      _results = [];
+      for (_j = 0, _len1 = this.length; _j < _len1; _j++) {
+        t = this[_j];
+        _results.push(t.setStyles.apply(t, args));
+      }
+      return _results;
+    };
+
+    return TagrList;
+
+  })();
+
+  tagr.list = function() {
+    var args;
+    args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+    return (function(func, args, ctor) {
+      ctor.prototype = func.prototype;
+      var child = new ctor, result = func.apply(child, args), t = typeof result;
+      return t == "object" || t == "function" ? result || child : child;
+    })(TagrList, args, function(){});
+  };
+
+  tagr.view = {
+    getBox: function(t) {
+      return t._node.getBoundingClientRect();
+    },
+    getStyle: function(t, name) {
+      var computedStyle, left, rsLeft, val, _ref1, _ref2, _ref3;
+      if (window.getComputedStyle) {
+        computedStyle = t._node.ownerDocument.defaultView.getComputedStyle(t._node, null);
+        val = computedStyle != null ? computedStyle.getPropertyValue(name) : void 0;
+        return (name === "opacity" && val === "" ? "1" : val);
+      } else if (t._node.currentStyle) {
+        val = (_ref1 = t._node.currentStyle[name]) != null ? _ref1 : t._node.currentStyle[toCamelCase(name)];
+        if (!/^\d+(?:px)?$/i.test(ret) && /^\d/.test(ret)) {
+          _ref2 = [t._node.style.left, t._node.runtimeStyle.left], left = _ref2[0], rsLeft = _ref2[1];
+          t._node.runtimeStyle.left = t._node.currentStyle.left;
+          t._node.style.left = (name === "font-size" ? "1em" : val || 0);
+          val = t._node.style.pixelLeft + "px";
+          _ref3 = [left, rsLeft], t._node.style.left = _ref3[0], t._node.runtimeStyle.left = _ref3[1];
+        }
+        return val;
+      }
+    }
+  };
+
+  Tagr.prototype.getSize = function(i) {
+    var j, o, _j, _ref1;
+    if (typeof this[i] === 'string') {
+      return this[i].length;
+    } else {
+      o = 2;
+      for (j = _j = 0, _ref1 = this[i].length; 0 <= _ref1 ? _j < _ref1 : _j > _ref1; j = 0 <= _ref1 ? ++_j : --_j) {
+        o += this[i].getSize(j);
+      }
+      return o;
+    }
+  };
+
+  Tagr.prototype.getOffset = function() {
+    var i, o, p;
+    p = this.parent;
+    i = this.index();
+    o = 0;
+    while (true) {
+      while (i >= 0) {
+        o += p.getSize(i);
+        i--;
+      }
+      if (p.parent == null) {
+        break;
+      }
+      i = p.index();
+      p = p.parent;
+    }
+    return o;
+  };
 
 }).call(this);

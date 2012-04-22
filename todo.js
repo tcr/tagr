@@ -10,7 +10,8 @@
 // load a context element from the loaded document, waiting
 // using tagr.ready() then tagr.getContext(domnode). This
 // method doesn't require waiting for the document finish loading.
-var ctx = tagr.writeContext().useWhitespace()
+var ctx = tagr.writeContext()
+	.useWhitespace(true).setSelectable(false)
 	.setStyles({
 		'border': '1px outset #aaa',
 		'background': '#ccc',
@@ -100,8 +101,8 @@ function deselect() {
 // Control panel state.
 function updateControls() {
 	removeButton.setAttr('disabled', !selected);
-	upButton.setAttr('disabled', !selected || selected.indexOfSelf() <= 0);
-	downButton.setAttr('disabled', !selected || selected.indexOfSelf() >= list.length-1);
+	upButton.setAttr('disabled', !selected || selected.index() <= 0);
+	downButton.setAttr('disabled', !selected || selected.index() >= list.length-1);
 }
 updateControls(); // Initial call.
 
@@ -114,13 +115,13 @@ function removeItem(item) {
 }
 // Reorder items.
 function moveUp(item) {
-	var i = item.indexOfSelf();
+	var i = item.index();
 	if (i <= 0) return;
 	item.removeSelf();
 	list.insert(i - 1, item);
 }
 function moveDown(item) {
-	var i = item.indexOfSelf();
+	var i = item.index();
 	if (i >= list.length - 1) return;
 	item.removeSelf();
 	list.insert(i + 1, item);
@@ -130,6 +131,10 @@ function moveDown(item) {
 addItem('TODO list item #1. Click me!')
 addItem('TODO list item #2. No click me!')
 addItem('TODO list item #3. Don\'t click me. I ain\'t even mad.')
+
+this.list = list;
+
+console.log('OFFSET', list[2].getOffset())
 
 // End closure.	
 })();
