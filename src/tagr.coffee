@@ -2,8 +2,44 @@
 * @license Tagr, HTML manipulation for webapps. MIT Licensed.
 ###
 
+###
+
+
+
+DOM TODO:
+	Selections
+	compareDocumentPosition
+	offsets, custom JSON serialization
+	data attributes, custom data, custom attributes
+	pull out attribute caching
+	browser testing. ie6 leak prevention
+	normalize events
+	verify 'input' value always works
+	create "div#apple.selected.something"
+	class attribute as array
+	context-interchangeable positions-can mix contexts?
+
+USAGE TODO:
+	create usable widget patterns
+	integrate with Backbone, or replicate model at least
+	documentation
+	comment errything
+	server/browser integration
+	should context objects be a subclass?
+	tagr.view is properties of context?
+	contenteditable
+	optional sizzle? optional selection.js?
+	server-side version
+	writeContext should obviously take children (cool)
+	browser storage? (recommended solution)
+	cdn?
+
+###
+
 fromCamelCase = -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
 toCamelCase = -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
+
+RegExp.escape = (text) -> text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
 
 # EventEmitter
 # ------------
@@ -79,6 +115,42 @@ addDomReadyListener = do ->
 	document.getElementsByTagName('head')[0].appendChild s
 	return s
 
+# ArrayHash
+# ---------
+
+class ArrayHash
+	constructor: (@chain, @handlers = {}) ->
+		@hash = {}
+		@length = 0
+
+	get: (k) ->
+		return if @handlers?.get? then @handlers.get(k) else @hash['@'+k]
+
+	set: (k, v) ->
+		if typeof k == 'object'
+			@set(ak, av) for ak, av of k
+			return @chain
+		if typeof v == 'object' and v.length?
+			@set(k, av) for av in v
+			return @chain
+		unless Object::hasOwnProperty.call(@hash, '@'+k)
+			@[@length++] = k
+		@handlers?.set?(k, v)
+		@hash['@'+k] = v
+		return @chain
+
+	remove: (k) ->
+		return @chain unless Object::hasOwnProperty.call(@hash, '@'+k)
+		# Shift values down
+		for tk, i in this when tk == k
+			for j in [i...@length - 1]
+				@[j] = @[j+1]
+			break
+		@length--
+		@handlers?.remove?(k)
+		delete @hash['@'+k]
+		return @chain
+
 # DOM Map
 # -------
 
@@ -133,15 +205,6 @@ tagr.ATTR_PROPS =
 	longdesc: "longDesc", tabindex: "tabIndex", rowspan: "rowSpan"
 	colspan: "colSpan", enctype: "encType", ismap: "isMap"
 	usemap: "useMap", cellpadding: "cellPadding", cellspacing: "cellSpacing"
-# Because we cache attributes statically, we need to detect changes
-# made by the user. (We trust the user! Not the programmer. Bad programmer.)
-tagr.ATTR_WATCH =
-	# http://www.greywyvern.com/?post=282
-	value: (t) ->
-		update = -> t.attrs.value = t._node.value
-		t.on 'input', update
-		t.on 'propertychange', (e) -> if e.propertyName == 'value' then update()
-	checked: (t) -> t.on 'change', -> t.attrs.checked = t._node.checked
 
 # Create a new Tagr object.
 tagr.create = (tag, attrs = {}) ->
@@ -178,29 +241,36 @@ tagr.getWrapper = (node) ->
 	return obj
 
 # document.write a new context, avoiding tagr.ready()
-tagr.writeContext = (tag = 'div', attrs = {}) ->
+tagr.writeContext = (tag = 'div', props = {}) ->
 	document.write("<#{tag}></#{tag}>")
-	list = document.getElementsByTagName('*')
-	return tagr.getContext(list[list.length-1]).setAttrs attrs
+	list = document.getElementsByTagName(tag)
+	obj = tagr.getContext(list[list.length-1]).set(props)
+	console.log obj
+	return obj
 
 # Tagr wrapper objects map 1:1 with the DOM.
 	
 tagr.Tagr = class Tagr extends EventEmitter
 
 	constructor: (@_node, @parent) ->
+		# Tags.
 		@tag = @_node.nodeName.toLowerCase()
-		# Attributes and classes.
-		@attrs = {}
-		for attr in @_node.attributes when attr not in tagr.IGNORE_ATTRS
-			@attrs[attr.name] = attr.value
-		for k, v of tagr.ATTR_WATCH when @_node[tagr.ATTR_PROPS[k] ? k]?
-			v(this)
+
 		# Classes.
-		@classes = (@_node.className.match(/\S+/g) or [])
+		@classes = new ArrayHash this,
+			set: (k, v) => @_node.className = "#{(c for c in (@_node.className.match(/\S+/g) ? []) when c != k).join ''} #{k}"
+			get: (k) => !!@_node.className.match(new RegExp("\\b#{k}\\b"))
+			remove: (k) => @_node.className = (c for c in (@_node.className.match(/\S+/g) ? []) when c != k).join ''
+		for name in (@_node.className.match(/\S+/g) or [])
+			console.log name
+			@classes.set(name)
+
 		# Styles.
-		@style = {}
-		for k in @_node.style
-			@style[k] = @_node.style[k]
+		@style = new ArrayHash this,
+			set: (k, v) => @_node.style[k] = v
+			get: (k) => @_node.style[k]
+			remove: (k) => delete @_node.style[k]
+
 		# Children.
 		@length = @_node.childNodes.length
 		for c, i in @_node.childNodes
@@ -217,6 +287,23 @@ tagr.Tagr = class Tagr extends EventEmitter
 		if not @_node.hasAttribute('data-tagr')
 			@_node.setAttribute 'data-tagr', getElementUUID(@_node)
 		@_node.getAttribute('data-tagr')
+
+	# Properties.
+	get: (k) ->
+		return @_node[tagr.ATTR_PROPS[k] ? k]
+	set: (k, v) ->
+		if typeof k == 'object'
+			@set(ak, av) for ak, av of k
+			return this
+		@_node[tagr.ATTR_PROPS[k] ? k] = v
+	remove: (k) ->
+		@_node.removeAttribute(k)
+
+	# Events.
+	addListener: (type, f) ->
+		@_node.addEventListener? type, ((e) => @emit type, e), false
+		@_node.attachEvent? 'on'+type (=> @emit type, window.event)
+		return super type, f
 
 	# Children.
 	splice: (i, del, add...) ->
@@ -240,7 +327,7 @@ tagr.Tagr = class Tagr extends EventEmitter
 		if add.length
 			right = @_node.childNodes[i]
 			for c, j in add
-				# Get valid DOM node.
+				# Get DOM node.
 				if typeof c == 'object' and c?.constructor == Array then c = tagr.parse(c); n = c._node
 				else if typeof c == 'string' then n = document.createTextNode(c)
 				else n = c._node
@@ -252,13 +339,13 @@ tagr.Tagr = class Tagr extends EventEmitter
 		@length += (-del) + add.length
 		return ret
 
-	# Manipulating our own children...
+	# Let the children manipulate themselves...
 	append: (args...) -> @splice(@length, 0, args...); return this
 	prepend: (args...) -> @splice(0, 0, args...); return this
 	remove: (i) -> @splice i, 1; return this
 	insert: (i, e) -> @splice i, 0, e; return this 
 	empty: -> @splice 0, @length; return this
-	# ...or letting our parents do it for us. #issues
+	# ...or letting their parents do it for them.
 	appendSelf: (e) -> e.append(this); return this
 	prependSelf: (e) -> e.prepend(this); return this
 	removeSelf: -> @parent.remove @parent.indexOf(this); return this
@@ -270,80 +357,8 @@ tagr.Tagr = class Tagr extends EventEmitter
 	# Shorthand for select('selector').find()
 	find: (match) -> @select(match).find()
 
-	# Attributes.
-	setAttr: (name, v) ->
-		if name == 'class' then @classes = (v.match(/\S+/g) or [])
-		@_node[tagr.ATTR_PROPS[name] ? name] = @attrs[name] = v;
-		return this
-	setAttrs: (map) ->
-		for k, v of map then @setAttr k, v
-		return this
-
-	# Classes.
-	setClass: (name, toggle = yes) ->
-		if toggle
-			@classes = @classes.concat([name]) unless name in @classes
-			@setAttr 'class', @classes.join ' '
-		else
-			@classes = (c for c in @classes when c != name)
-			@setAttr 'class', @classes.join ' '
-		return this
-	setClasses: (map) ->
-		for k, v of map then @setClass k, v
-		return this
-
-	# Style.
-	setStyle: (k, v) ->
-		throw new Exception('setStyle must be called with a value. Call using an empty string.') unless v?
-		# Properties can cascade if an array is supplied for 'value'.
-		for val in (if typeof v == 'object' then v else [v])
-			@style[k] = @_node.style[k] = val
-		return this
-	setStyles: (map) ->
-		for k, v of map then @setStyle k, v
-		return this
-
-	# Events.
-	addListener: (type, f) ->
-		@_node.addEventListener? type, ((e) => @emit type, e), false
-		@_node.attachEvent? 'on'+type (=> @emit type, window.event)
-		return super type, f
-
 	# JSON.
 	toJSON: -> [@tag, @attrs, ((if typeof x == 'string' then x else x.toJSON()) for x in @)...]
-
-	# Utility methods.
-		
-	# Significant whitespace is awesome.
-	useWhitespace: (toggle = yes) ->
-		if toggle
-			@setStyles {
-				'white-space': [
-					'pre'						# IE6-8
-					'pre-wrap'					# CSS3
-					'-moz-pre-wrap'				# Mozilla
-					'-pre-wrap'					# Opera 4-6
-					'-o-pre-wrap'				# Opera 7+
-				]
-				'word-wrap': 'break-word'       # IE 5.5+
-			}
-		else
-			@setStyles {
-				'white-space': ''
-				'word-wrap': ''
-			}
-
-	# Prevent inadvertent selections.
-	setSelectable: (toggle = yes) ->
-		val = if toggle then '' else 'none'
-		@setStyles {
-			'-webkit-touch-callout': val
-			'-webkit-user-select': val
-			'-khtml-user-select': val
-			'-moz-user-select': val
-			'-ms-user-select': val
-			'user-select': val
-		}
 
 # Transplant array functions onto Tagr objects.
 for n in ['forEach', 'slice', 'map', 'indexOf']
@@ -364,8 +379,12 @@ tagr.TagrQuery = class TagrQuery extends EventEmitter
 		return sCache[media] = (s.sheet or s.styleSheet)
 
 	constructor: (@ctx, @match) ->
-
-	find: -> new Tagr(el) for el in Sizzle(match, @ctx._node)
+		@style = new ArrayHash this,
+			set: (k, v) => 
+				selector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@match}"
+				s = getStylesheet()
+				s.insertRule "#{selector} { #{k}: #{v} }", s.cssRules.length
+				return
 
 	addListener: (type, f) ->
 		@ctx._node.addEventListener type, ((e) =>
@@ -378,15 +397,7 @@ tagr.TagrQuery = class TagrQuery extends EventEmitter
 		), false
 		return super type, f
 
-	setStyle: (k, v) ->
-		throw new Exception('setStyle must be called with a value.') unless v
-		selector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@match}"
-		s = getStylesheet()
-		s.insertRule "#{selector} { #{k}: #{v} }", s.cssRules.length
-		return this
-	setStyles: (map) ->
-		for k, v of map then @setStyle k, v
-		return this
+	find: -> new Tagr(el) for el in Sizzle(match, @ctx._node)
 
 # Apply methods to a list of Tagr objects.
 
@@ -396,10 +407,11 @@ tagr.TagrList = class TagrList
 		for i in args
 			@[i] = args[i]
 
-	setAttr: (args...) -> for t in @ then t.setAttr args...
-	setAttrs: (args...) -> for t in @ then t.setAttrs args...
-	setStyle: (args...) -> for t in @ then t.setStyle args...
-	setStyles: (args...) -> for t in @ then t.setStyles args...
+		@attrs = new ArrayHash this,
+			set: (k, v) => for t in @ then t.set(k, v)
+		@styles = new ArrayHash this,
+			set: (k) => for t in @ then t.style.set(k)
+			remove: (k) => for t in @ then t.style.remove(k)
 
 tagr.list = (args...) -> new TagrList(args...)
 
@@ -407,7 +419,12 @@ tagr.list = (args...) -> new TagrList(args...)
 
 tagr.view =
 	# Bounding box for element.
-	getBox: (t) -> t._node.getBoundingClientRect()
+	getBox: (t, ctx) ->
+		box = t._node.getBoundingClientRect()
+		if ctx?
+			for k, v of ctx._node.getBoundingClientRect()
+				box[k] -= v
+		return box
 
 	# Get computed CSS property.
 	# http://web.archive.org/web/20091208072543/http://erik.eae.net/archives/2007/07/27/18.54.15/
@@ -425,6 +442,10 @@ tagr.view =
 				val = t._node.style.pixelLeft + "px"
 				[t._node.style.left, t._node.runtimeStyle.left] = [left, rsLeft]
 			return val
+
+# Selection.
+
+Tagr::getSelection = ->
 
 # Offsets
 
@@ -445,3 +466,36 @@ Tagr::getOffset = ->
 		unless p.parent? then break
 		i = p.index(); p = p.parent
 	return o
+
+# Utility methods.
+	
+# Significant whitespace is awesome.
+Tagr::useWhitespace = (toggle = yes) ->
+	if toggle
+		@style.set {
+			'white-space': [
+				'pre'						# IE6-8
+				'pre-wrap'					# CSS3
+				'-moz-pre-wrap'				# Mozilla
+				'-pre-wrap'					# Opera 4-6
+				'-o-pre-wrap'				# Opera 7+
+			]
+			'word-wrap': 'break-word'       # IE 5.5+
+		}
+	else
+		@style.set {
+			'white-space': ''
+			'word-wrap': ''
+		}
+
+# Prevent inadvertent selections.
+Tagr::setSelectable = (toggle = yes) ->
+	val = if toggle then '' else 'none'
+	@style.set {
+		'-webkit-touch-callout': val
+		'-webkit-user-select': val
+		'-khtml-user-select': val
+		'-moz-user-select': val
+		'-ms-user-select': val
+		'user-select': val
+	}

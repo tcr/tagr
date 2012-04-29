@@ -1,5 +1,5 @@
 build: ./src/tagr.coffee
-	coffee -c -o ./lib/tagr.js ./src/tagr.coffee 
+	coffee -c -o ./lib ./src/tagr.coffee 
 	closure --js ./resources/sizzle.js --js ./lib/tagr.js --js_output_file ./lib/tagr.min.js --compilation_level ADVANCED_OPTIMIZATIONS
 	@ gzip -c ./lib/tagr.min.js > ./lib/tagr.min.js.gz
 	@ echo ""

@@ -11,8 +11,9 @@
 // using tagr.ready() then tagr.getContext(domnode). This
 // method doesn't require waiting for the document finish loading.
 var ctx = tagr.writeContext()
-	.useWhitespace(true).setSelectable(false)
-	.setStyles({
+	.useWhitespace(true)
+	.setSelectable(false)
+	.style.set({
 		'border': '1px outset #aaa',
 		'background': '#ccc',
 		'padding': '10px'
@@ -22,7 +23,7 @@ var ctx = tagr.writeContext()
 var addButton, removeButton, upButton, downButton;
 // Create a list element
 var list = tagr('div').appendSelf(ctx)
-	.setStyles({
+	.style.set({
 		'height': '300px',
 		'background': '#777',
 		'border': '1px inset #aaa',
@@ -34,18 +35,18 @@ var list = tagr('div').appendSelf(ctx)
 // to the last element to be clicked. Note that none of these
 // elements have been inserted yet.
 list.select('div')
-	.setStyles({
+	.on('click', function () {
+		select(this);
+	})
+	.style.set({
 		'background': '#eee',
 		'cursor': 'pointer',
 		'padding': '3px 5px',
 		'margin-bottom': '1px',
 		'overflow': 'auto'
-	})
-	.on('click', function () {
-		select(this);
 	});
 list.select('div.selected')
-	.setStyles({
+	.style.set({
 		'border-left': '5px solid #fc0',
 		'font-weight': 'bold'
 	});
@@ -76,9 +77,9 @@ ctx.append(
 				updateControls();
 			})
 	)
-	.setStyle('margin-top', '10px')
+	.style.set('margin-top', '10px')
 )
-.select('button').setStyle('font-size', 'inherit');
+.select('button').style.set('font-size', 'inherit');
 
 // Now we've populated the markup, we can begin describing our logic.
 // Let's add items, remove items, select, deselect, and reorder.
@@ -87,12 +88,13 @@ ctx.append(
 var selected = null;
 function select(elem) {
 	if (selected) deselect();
-	(selected = elem).setClass('selected', true);
+	(selected = elem).classes.set('selected');
 	updateControls();
 }
 function deselect() {
 	if (!selected) return;
-	selected.setClass('selected', false);
+	console.log(selected.classes.remove)
+	selected.classes.remove('selected');
 	updateControls();
 	var old = selected;
 	selected = null;
@@ -100,9 +102,9 @@ function deselect() {
 }
 // Control panel state.
 function updateControls() {
-	removeButton.setAttr('disabled', !selected);
-	upButton.setAttr('disabled', !selected || selected.index() <= 0);
-	downButton.setAttr('disabled', !selected || selected.index() >= list.length-1);
+	removeButton.set('disabled', !selected);
+	upButton.set('disabled', !selected || selected.index() <= 0);
+	downButton.set('disabled', !selected || selected.index() >= list.length-1);
 }
 updateControls(); // Initial call.
 
@@ -131,10 +133,6 @@ function moveDown(item) {
 addItem('TODO list item #1. Click me!')
 addItem('TODO list item #2. No click me!')
 addItem('TODO list item #3. Don\'t click me. I ain\'t even mad.')
-
-this.list = list;
-
-console.log('OFFSET', list[2].getOffset())
 
 // End closure.	
 })();
