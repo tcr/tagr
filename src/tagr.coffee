@@ -36,13 +36,24 @@ USAGE TODO:
 
 ###
 
+# Support
+# -------
+
 fromCamelCase = -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
 toCamelCase = -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
 
-RegExp.escape = (text) -> text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
+# Tagr uses direct element properties on the object. Browsers need
+# aMappingToCamelCaseForMostProperties.
+HTML_DOM_PROPS =
+	for: "htmlFor", accesskey: "accessKey", codebase: "codeBase"
+	frameborder: "frameBorder", framespacing: "frameSpacing", nowrap: "noWrap"
+	maxlength: "maxLength", class: "className", readonly: "readOnly"
+	longdesc: "longDesc", tabindex: "tabIndex", rowspan: "rowSpan"
+	colspan: "colSpan", enctype: "encType", ismap: "isMap"
+	usemap: "useMap", cellpadding: "cellPadding", cellspacing: "cellSpacing"
 
 # EventEmitter
-# ------------
+# ============
 
 # Standard shim to replicate Node.js behavior.
 
@@ -68,7 +79,27 @@ class EventEmitter
 	_maxListeners: 10
 	setMaxListeners: (@_maxListeners) ->
 
-# Obligatory DomReady hander.
+# Generics
+# ========
+
+# HTML Object generics. Mimicks the handy APIs of the
+# Audio, Image, Video, etc. elements.
+
+@Stylesheet = Stylesheet = (media = 'all') ->
+	s = document.createElement 'style'
+	s.type = 'text/css'
+	s.media = media
+	document.getElementsByTagName('head')[0].appendChild s
+	return s
+
+@Script = Script = ->
+	s = document.createElement 'script'
+	s.src = 'about:blank'
+	document.getElementsByTagName('head')[0].appendChild s
+	return s
+
+# Dom Tools
+# =========
 
 addDomReadyListener = do ->
 	loaded = /^loade|c/.test(document.readyState)
@@ -99,24 +130,38 @@ addDomReadyListener = do ->
 		, false
 		return (fn) -> if loaded then fn() else fns.push(fn)
 
-# HTML Object generics. Mimicks the handy APIs of the
-# Audio, Image, Video, etc. elements.
+# http://web.archive.org/web/20091208072543/http://erik.eae.net/archives/2007/07/27/18.54.15/
+getComputedStyle = (n, name) ->
+	if window.getComputedStyle
+		computedStyle = n.ownerDocument.defaultView.getComputedStyle(n, null)
+		val = computedStyle?.getPropertyValue(name)
+		return (if name == "opacity" and val == "" then "1" else val)
+	else if n.currentStyle
+		val = n.currentStyle[name] ? n.currentStyle[toCamelCase name]
+		if not /^\d+(?:px)?$/i.test(ret) and /^\d/.test(ret)
+			[left, rsLeft] = [n.style.left, n.runtimeStyle.left]
+			n.runtimeStyle.left = n.currentStyle.left
+			n.style.left = (if name == "font-size" then "1em" else (val or 0))
+			val = n.style.pixelLeft + "px"
+			[n.style.left, n.runtimeStyle.left] = [left, rsLeft]
+		return val
 
-@Stylesheet = Stylesheet = (media = 'all') ->
-	s = document.createElement 'style'
-	s.type = 'text/css'
-	s.media = media
-	document.getElementsByTagName('head')[0].appendChild s
-	return s
-
-@Script = Script = ->
-	s = document.createElement 'script'
-	s.src = 'about:blank'
-	document.getElementsByTagName('head')[0].appendChild s
-	return s
+# Support IE7
+# http://weblogs.asp.net/bleroy/archive/2009/08/31/queryselectorall-on-old-ie-versions-something-that-doesn-t-work.aspx
+findSelector = do ->
+	if not document.documentElement.querySelector? and document.documentElement.currentStyle?
+		sheet = new Stylesheet()
+		return (root, selector) ->
+			tag = selector.match(/(?:^|\s+)([^.#:\s]+)(?:[.#:]+[^:.#()\s]+)*\s*$/)?[1]
+			sheet.addRule(selector, 'foo:bar')
+			res = (x for x in (if tag? then root.tags(tag) else root.all) when x.currentStyle.foo == 'bar')
+			sheet.removeRule(0)
+			return res
+	else
+		return (root, selector) -> root.querySelectorAll(selector)
 
 # ArrayHash
-# ---------
+# =========
 
 class ArrayHash
 	constructor: (@chain, @handlers = {}) ->
@@ -152,7 +197,7 @@ class ArrayHash
 		return @chain
 
 # DOM Map
-# -------
+# =======
 
 # Unique property. Use IE's .uniqueId, or use expando for other browsers.
 getElementUUID = do ->
@@ -196,15 +241,6 @@ class DomMap
 
 # Configuration.
 tagr.IGNORE_ATTRS = ['data-tagr']
-# Tagr uses direct element properties on the object. Browsers need
-# aMappingToCamelCaseForMostProperties.
-tagr.ATTR_PROPS =
-	for: "htmlFor", accesskey: "accessKey", codebase: "codeBase"
-	frameborder: "frameBorder", framespacing: "frameSpacing", nowrap: "noWrap"
-	maxlength: "maxLength", class: "className", readonly: "readOnly"
-	longdesc: "longDesc", tabindex: "tabIndex", rowspan: "rowSpan"
-	colspan: "colSpan", enctype: "encType", ismap: "isMap"
-	usemap: "useMap", cellpadding: "cellPadding", cellspacing: "cellSpacing"
 
 # Create a new Tagr object.
 tagr.create = (tag, attrs = {}) ->
@@ -279,7 +315,7 @@ tagr.Tagr = class Tagr extends EventEmitter
 	# Associate DOM node with Tagr object, for querying. We only need
 	# this association when elements are attached to the document.
 	_attach: (@parent) -> tagr._map.set @_node, 'tagr', this
-	_detach: -> @parent = null; tagr._map.remove @_node, 'tagr'
+	_detach: -> delete @parent; tagr._map.remove @_node, 'tagr'
 
 	# Create a data attribute with the element UUID. This is used only
 	# for styling.
@@ -290,12 +326,13 @@ tagr.Tagr = class Tagr extends EventEmitter
 
 	# Properties.
 	get: (k) ->
-		return @_node[tagr.ATTR_PROPS[k] ? k]
+		return @_node[HTML_DOM_PROPS[k] ? k]
 	set: (k, v) ->
 		if typeof k == 'object'
 			@set(ak, av) for ak, av of k
 			return this
-		@_node[tagr.ATTR_PROPS[k] ? k] = v
+		@emit 'change:' + k, v
+		@_node[HTML_DOM_PROPS[k] ? k] = v
 	remove: (k) ->
 		@_node.removeAttribute(k)
 
@@ -320,7 +357,7 @@ tagr.Tagr = class Tagr extends EventEmitter
 		if del > add.length
 			for j in [i + del...@length]
 				@[j-del] = @[j]
-		if add.length > del
+		else if add.length > del
 			for j in [@length+add.length-1...i]
 				@[j] = @[j-add.length]
 		# Insert new nodes.
@@ -378,17 +415,17 @@ tagr.TagrQuery = class TagrQuery extends EventEmitter
 		s = new Stylesheet(media)
 		return sCache[media] = (s.sheet or s.styleSheet)
 
-	constructor: (@ctx, @match) ->
+	constructor: (@ctx, @selector) ->
 		@style = new ArrayHash this,
 			set: (k, v) => 
-				selector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@match}"
+				fullSelector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@selector}"
 				s = getStylesheet()
-				s.insertRule "#{selector} { #{k}: #{v} }", s.cssRules.length
+				s.insertRule "#{fullSelector} { #{k}: #{v} }", s.cssRules.length
 				return
 
 	addListener: (type, f) ->
 		@ctx._node.addEventListener type, ((e) =>
-			matches = Sizzle("#{@match}", @ctx._node)
+			matches = findSelector(@ctx._node, @selector)
 			n = e.target
 			while n != @ctx._node and n
 				if n in matches
@@ -397,7 +434,7 @@ tagr.TagrQuery = class TagrQuery extends EventEmitter
 		), false
 		return super type, f
 
-	find: -> new Tagr(el) for el in Sizzle(match, @ctx._node)
+	find: -> new Tagr(el) for el in findSelector(@ctx._node, @selector)
 
 # Apply methods to a list of Tagr objects.
 
@@ -415,6 +452,9 @@ tagr.TagrList = class TagrList
 
 tagr.list = (args...) -> new TagrList(args...)
 
+# View
+# ====
+
 # Dynamic styles based on the current browser view.
 
 tagr.view =
@@ -427,27 +467,15 @@ tagr.view =
 		return box
 
 	# Get computed CSS property.
-	# http://web.archive.org/web/20091208072543/http://erik.eae.net/archives/2007/07/27/18.54.15/
-	getStyle: (t, name) -> 
-		if window.getComputedStyle
-			computedStyle = t._node.ownerDocument.defaultView.getComputedStyle(t._node, null)
-			val = computedStyle?.getPropertyValue(name)
-			return (if name == "opacity" and val == "" then "1" else val)
-		else if t._node.currentStyle
-			val = t._node.currentStyle[name] ? t._node.currentStyle[toCamelCase name]
-			if not /^\d+(?:px)?$/i.test(ret) and /^\d/.test(ret)
-				[left, rsLeft] = [t._node.style.left, t._node.runtimeStyle.left]
-				t._node.runtimeStyle.left = t._node.currentStyle.left
-				t._node.style.left = (if name == "font-size" then "1em" else (val or 0))
-				val = t._node.style.pixelLeft + "px"
-				[t._node.style.left, t._node.runtimeStyle.left] = [left, rsLeft]
-			return val
+	getStyle: (t, name) -> getComputedStyle(t._node, name)
 
-# Selection.
+# Selection
+# =========
 
 Tagr::getSelection = ->
 
 # Offsets
+# =======
 
 Tagr::getSize = (i) ->
 	if typeof @[i] == 'string' then @[i].length
@@ -467,7 +495,8 @@ Tagr::getOffset = ->
 		i = p.index(); p = p.parent
 	return o
 
-# Utility methods.
+# Utility
+# =======
 	
 # Significant whitespace is awesome.
 Tagr::useWhitespace = (toggle = yes) ->
