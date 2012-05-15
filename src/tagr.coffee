@@ -11,11 +11,9 @@ DOM TODO:
 	compareDocumentPosition
 	offsets, custom JSON serialization
 	data attributes, custom data, custom attributes
-	pull out attribute caching
 	browser testing. ie6 leak prevention
 	normalize events
 	verify 'input' value always works
-	create "div#apple.selected.something"
 	class attribute as array
 	context-interchangeable positions-can mix contexts?
 
@@ -68,55 +66,81 @@ class EventEmitter
 
 # Hash of strings to values.
 
-class ArrayHash
-	constructor: (@chain, @handlers = {}) ->
-		@hash = {}
-		@length = 0
-
-	get: (k) ->
-		return if @handlers?.get? then @handlers.get(k) else @hash['@'+k]
-
-	set: mappable keyListable valueListable (k, v) ->
-		unless Object::hasOwnProperty.call(@hash, '@'+k)
-			@[@length++] = k
-		@handlers?.set?(k, v)
-		@hash['@'+k] = v
-		return @chain
-
-	remove: (k) ->
-		return @chain unless Object::hasOwnProperty.call(@hash, '@'+k)
-		# Shift values down
-		for tk, i in this when tk == k
-			for j in [i...@length - 1]
-				@[j] = @[j+1]
-			break
-		@length--
-		@handlers?.remove?(k)
-		delete @hash['@'+k]
-		return @chain
-
 mappable = (fn) -> (k, v) ->
 	unless arguments.length > 1
-		for mk, mv of k then ret = fn.call this, mk, mv
-		return ret
+		for mk, mv of k then fn.call this, mk, mv
+		return this
 	return fn.call this, k, v
 
 keyListable = (fn) -> (k, v) ->
 	if typeof k == 'object' and k?.length?
-		for mk in k then ret = fn.call this, mk, v
-		return ret
+		for mk in k then fn.call this, mk, v
+		return this
 	return fn.call this, k, v
 
 valueListable = (fn) -> (k, v) ->
 	if typeof v == 'object' and v?.length?
-		for mv in v then ret = fn.call this, k, mv
-		return ret
+		for mv in v then fn.call this, k, mv
+		return this
 	return fn.call this, k, v
+
+class ArrayHash
+	constructor: (chain, handlers = {}) ->
+		hash = {}
+		@length = 0
+
+		proxy = (chain, f) -> return -> f.apply chain, arguments
+
+		@get = proxy chain, (k) ->
+			return if handlers?.get? then handlers.get(k) else hash['@'+k]
+
+		@set = proxy chain, mappable keyListable valueListable (k, v) ->
+			unless Object::hasOwnProperty.call(hash, '@'+k)
+				@[@length++] = k
+			handlers?.set?(k, v)
+			hash['@'+k] = v
+			return this
+
+		@remove = proxy chain, (k) ->
+			unless Object::hasOwnProperty.call(hash, '@'+k)
+				# Shift values down
+				for tk, i in this when tk == k
+					for j in [i...@length - 1]
+						@[j] = @[j+1]
+					break
+				@length--
+				handlers?.remove?(k)
+				delete hash['@'+k]
+			return this
 
 # String extensions.
 
-fromCamelCase = -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
-toCamelCase = -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
+fromCamelCase = (name) -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
+toCamelCase = (name) -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
+
+# Object splicing.
+
+spliceObject = (obj, i, del, add...) ->
+	if i < 0 or isNaN(i) then throw 'Invalid index'
+	# Remove nodes.
+	if del
+		ret = []
+		for j in [0...del]
+			ret.push obj[i+j]
+			delete obj[i+j]
+	# Shift nodes in array index.
+	if del > add.length # Move down.
+		for j in [i + del...obj.length]
+			obj[j-del] = obj[j]
+	else if add.length > del # Move up.
+		for j in [obj.length+add.length-1...i]
+			obj[j] = obj[j-add.length]
+	# Insert new nodes.
+	if add.length
+		for c, j in add
+			obj[i+j] = c
+	obj.length += (-del) + add.length
+	return ret
 
 # Generics
 # ========
@@ -137,18 +161,6 @@ toCamelCase = -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase
 
 # Dom Tools
 # =========
-
-# Simple CSS selector regexes.
-SIMPLE_SELECTOR_MATCH = /(?:^|\s+)([^.#\[\]:\s]*)(\S+)\s*$/ # [full, tag, attrs]
-SIMPLE_SELECTOR_CHUNKER = /([:#.]+)([^:#.]+)/g
-parseSimpleSelector = (selector) ->
-	return unless (match = selector.match SIMPLE_SELECTOR_MATCH)
-	ret = {tag: match[1] or 'div', classes: [], id: null}
-	for attr in match[2].match SIMPLE_SELECTOR_CHUNKER
-		switch attr[0] 
-			when '#' then ret.id = attr.substr 1
-			when '.' then ret.classes.push attr.substr 1
-	return ret
 
 # Tagr uses direct element properties on the object. Browsers need
 # aMappingToCamelCaseForMostProperties.
@@ -190,6 +202,7 @@ addDomReadyListener = do ->
 		, false
 		return (fn) -> if loaded then fn() else fns.push(fn)
 
+# Get computed CSS properties.
 # http://web.archive.org/web/20091208072543/http://erik.eae.net/archives/2007/07/27/18.54.15/
 getComputedStyle = (n, name) ->
 	if window.getComputedStyle
@@ -227,12 +240,23 @@ getElementUniqueId = do ->
 
 # Map of values to DOM nodes without leaking memory. Data should
 # manually be removed when a node is no longer in use.
-
 class DomMap
 	constructor: -> @cache = {}
 	set: (elem, value) -> @cache[getElementUniqueId(elem)] = value
 	get: (elem) -> @cache[getElementUniqueId(elem)]
 	remove: (elem) -> delete @cache[getElementUniqueId(elem)]
+
+# Simple CSS selector regexes.
+SIMPLE_SELECTOR_MATCH = /(?:^|\s+)([^.#\[\]:\s]*)(\S*)\s*$/ # [full, tag, attrs]
+SIMPLE_SELECTOR_CHUNKER = /([:#.]+)([^:#.]+)/g
+parseSimpleSelector = (selector) ->
+	return unless (match = selector.match SIMPLE_SELECTOR_MATCH)
+	ret = {tag: match[1] or 'div', classes: [], id: null}
+	for attr in (match[2].match(SIMPLE_SELECTOR_CHUNKER) or [])
+		switch attr[0] 
+			when '#' then ret.id = attr.substr 1
+			when '.' then ret.classes.push attr.substr 1
+	return ret
 
 # Tagr API
 # --------
@@ -247,10 +271,10 @@ tagr.IGNORE_ATTRS = ['data-tagr']
 
 # Create a new Tagr object.
 tagr.create = (simple, attrs = {}) ->
-	sel = parseSimpleSelector simple
+	sel = parseSimpleSelector simple or ''
 	e = document.createElement sel.tag
-	e.className = sel.classes.join ' '
-	e.id = sel.id
+	if sel.classes.length then e.className = sel.classes.join ' '
+	if sel.id then e.id = sel.id
 	return new Tagr(e).set(attrs)
 
 tagr.parse = (str) ->
@@ -281,9 +305,7 @@ tagr.getContext = (node) -> tagr._getWrapper(node, yes)
 tagr.writeContext = (tag = 'div', props = {}) ->
 	document.write("<#{tag}></#{tag}>")
 	list = document.getElementsByTagName(tag)
-	obj = tagr.getContext(list[list.length-1]).set(props)
-	console.log obj
-	return obj
+	return tagr.getContext(list[list.length-1]).set(props)
 
 # Tagr wrapper objects map 1:1 with the DOM.
 	
@@ -295,26 +317,26 @@ tagr.Tagr = class Tagr extends EventEmitter
 
 		# Classes.
 		@classes = new ArrayHash this,
-			set: (k, v) => @_node.className = "#{(c for c in (@_node.className.match(/\S+/g) ? []) when c != k).join ''} #{k}"
+			set: (k, v = yes) => @_node.className = (c for c in @classes when c != k).join('') + (if v then ' ' + k else '')
 			get: (k) => !!@_node.className.match(new RegExp("\\b#{k}\\b"))
-			remove: (k) => @_node.className = (c for c in (@_node.className.match(/\S+/g) ? []) when c != k).join ''
+			remove: (k) => @_node.className = (c for c in @classes when c != k).join('')
 		for name in (@_node.className.match(/\S+/g) or [])
-			console.log name
 			@classes.set(name)
 
 		# Styles.
 		@style = new ArrayHash this,
-			set: (k, v) => @_node.style[k] = v
-			get: (k) => @_node.style[k]
-			remove: (k) => delete @_node.style[k]
+			set: (k, v) => @_node.style[toCamelCase k] = v
+			get: (k) => @_node.style[toCamelCase k]
+			remove: (k) => delete @_node.style[toCamelCase k]
 
 		# Children.
 		@length = @_node.childNodes.length
 		for c, i in @_node.childNodes
 			@[i] = (if c.nodeType == 1 then new Tagr(c, @) else c._nodeValue)
 
-	# Associate DOM node with Tagr object, for querying. We only need
-	# this association when elements are attached to the document.
+	# Associate Tagr object with its DOM node.
+	# We only need this association for querying, and thus, only when
+	# elements are attached to the document.
 	_attach: (@parent) -> tagr._map.set @_node, this
 	_detach: -> delete @parent; tagr._map.remove @_node
 
@@ -331,8 +353,10 @@ tagr.Tagr = class Tagr extends EventEmitter
 	set: mappable (k, v) ->
 		@emit 'change:' + k, v
 		@_node[HTML_DOM_PROPS[k] ? k] = v
+		return this
 	remove: (k) ->
 		@_node.removeAttribute(k)
+		return this
 
 	# Events.
 	addListener: (type, f) ->
@@ -344,45 +368,32 @@ tagr.Tagr = class Tagr extends EventEmitter
 
 	# Children.
 	splice: (i, del, add...) ->
-		if i < 0 or isNaN(i) then throw 'Invalid index'
-		# Remove nodes.
-		if del
-			ret = for j in [0...del]
-				c = @[i+j]
-				@_node.removeChild @_node.childNodes[i]
-				if typeof c == 'object' then c._detach()
-				delete @[i+j]
-				c
-		# Shift nodes in array index.
-		if del > add.length # Move down.
-			for j in [i + del...@length]
-				@[j-del] = @[j]
-		else if add.length > del # Move up.
-			for j in [@length+add.length-1...i]
-				@[j] = @[j-add.length]
-		# Insert new nodes.
-		if add.length
-			right = @_node.childNodes[i]
-			for c, j in add
-				# Get DOM node.
-				if typeof c == 'object' and c?.constructor == Array then c = tagr.parse(c); n = c._node
-				else if typeof c == 'string' then n = document.createTextNode(c)
-				else n = c._node
-				if n.parentNode then throw new Error 'Must remove element before appending elsewhere.'
-				# Insert node, update Tagr.
-				@_node.insertBefore n, right
-				if typeof c == 'object' then c._attach(this)
-				@[i+j] = c
-		@length += (-del) + add.length
-		return ret
+		# Remove nodes
+		for j in [0...del]
+			@_node.removeChild @_node.childNodes[i]
+			if typeof @[i+j] == 'object' then @[i+j]._detach()
 
-	# Let the children manipulate themselves...
+		# Insert nodes.
+		right = @_node.childNodes[i]
+		for obj, j in add
+			# Parse arguments.
+			if typeof obj == 'object'
+				if obj.constructor == Array then obj = add[j] = tagr.parse(obj)
+				n = obj._node
+			else n = document.createTextNode(obj)
+			# Insert node.
+			if n.parentNode then throw new Error 'Must remove element before appending elsewhere.'
+			@_node.insertBefore n, right
+			if typeof obj == 'object' then obj._attach(this)
+
+		return spliceObject this, i, del, add...
+	# Manipulation.
 	append: (args...) -> @splice(@length, 0, args...); return this
 	prepend: (args...) -> @splice(0, 0, args...); return this
 	remove: (i) -> @splice i, 1; return this
 	insert: (i, e) -> @splice i, 0, e; return this 
 	empty: -> @splice 0, @length; return this
-	# ...or letting their parents do it for them.
+	# Self-manipulation.
 	appendSelf: (e) -> e.append(this); return this
 	prependSelf: (e) -> e.prepend(this); return this
 	removeSelf: -> @parent.remove @parent.indexOf(this); return this
@@ -390,7 +401,7 @@ tagr.Tagr = class Tagr extends EventEmitter
 	index: -> @parent.indexOf this
 
 	# Children query.
-	select: (match) -> new TagrQuery this, match
+	select: (match) -> new tagr.TagrQuery this, match
 	# Shorthand for select('selector').find()
 	find: (match) -> @select(match).find()
 
