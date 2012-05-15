@@ -24,7 +24,6 @@ to use in your application.
 ### `tagr` module
 
 * #### tagr([*tag*[, *props*])
-  #### tagr.create([*tag*[, *props*]])
 
   Create a new `TagrElement` with the given tag and properties.
 

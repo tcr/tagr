@@ -261,26 +261,21 @@ parseSimpleSelector = (selector) ->
 # Tagr API
 # --------
 
-# Default namespace. tagr() defaults to tagr.create, creating a new
-# element.
-
-@tagr = tagr = (args...) -> tagr.create args...
-
-# Configuration.
-tagr.IGNORE_ATTRS = ['data-tagr']
-
-# Create a new Tagr object.
-tagr.create = (simple, attrs = {}) ->
+# Default namespace. tagr() is a function to create new TagrElements.
+@tagr = tagr = (simple, attrs = {}) ->
 	sel = parseSimpleSelector simple or ''
 	e = document.createElement sel.tag
 	if sel.classes.length then e.className = sel.classes.join ' '
 	if sel.id then e.id = sel.id
 	return new TagrElement(e).set(attrs)
 
+# Configuration.
+tagr.IGNORE_ATTRS = ['data-tagr']
+
 tagr.parse = (str) ->
 	return str if typeof str == 'string'
 	[simple, attrs, args...] = str
-	return tagr.create(simple, attrs).append (tagr.parse(arg) for arg in args)...
+	return tagr(simple, attrs).append (tagr.parse(arg) for arg in args)...
 
 # Convience for DOM loading.
 tagr.ready = addDomReadyListener
