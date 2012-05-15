@@ -275,7 +275,7 @@ tagr.create = (simple, attrs = {}) ->
 	e = document.createElement sel.tag
 	if sel.classes.length then e.className = sel.classes.join ' '
 	if sel.id then e.id = sel.id
-	return new Tagr(e).set(attrs)
+	return new TagrElement(e).set(attrs)
 
 tagr.parse = (str) ->
 	return str if typeof str == 'string'
@@ -295,7 +295,7 @@ tagr._getWrapper = (node, initialize = no) ->
 	unless (obj = tagr._map.get(node))?
 		if not initialize
 			throw new Error('No Tagr wrapper exists for this element.')
-		tagr._map.set node, (obj = new Tagr(node))
+		tagr._map.set node, (obj = new TagrElement(node))
 	return obj
 
 # tagr.getContext creates an element context.
@@ -307,9 +307,9 @@ tagr.writeContext = (tag = 'div', props = {}) ->
 	list = document.getElementsByTagName(tag)
 	return tagr.getContext(list[list.length-1]).set(props)
 
-# Tagr wrapper objects map 1:1 with the DOM.
+# TagrElement wrapper objects map 1:1 with the DOM.
 	
-tagr.Tagr = class Tagr extends EventEmitter
+tagr.TagrElement = class TagrElement extends EventEmitter
 
 	constructor: (@_node, @parent) ->
 		# Tags.
@@ -332,9 +332,9 @@ tagr.Tagr = class Tagr extends EventEmitter
 		# Children.
 		@length = @_node.childNodes.length
 		for c, i in @_node.childNodes
-			@[i] = (if c.nodeType == 1 then new Tagr(c, @) else c._nodeValue)
+			@[i] = (if c.nodeType == 1 then new TagrElement(c, @) else c._nodeValue)
 
-	# Associate Tagr object with its DOM node.
+	# Associate TagrElement object with its DOM node.
 	# We only need this association for querying, and thus, only when
 	# elements are attached to the document.
 	_attach: (@parent) -> tagr._map.set @_node, this
@@ -391,7 +391,7 @@ tagr.Tagr = class Tagr extends EventEmitter
 	append: (args...) -> @splice(@length, 0, args...); return this
 	prepend: (args...) -> @splice(0, 0, args...); return this
 	remove: (i) -> @splice i, 1; return this
-	insert: (i, e) -> @splice i, 0, e; return this 
+	insert: (i, args...) -> @splice i, 0, args...; return this 
 	empty: -> @splice 0, @length; return this
 	# Self-manipulation.
 	appendSelf: (e) -> e.append(this); return this
@@ -408,10 +408,10 @@ tagr.Tagr = class Tagr extends EventEmitter
 	# JSON.
 	toJSON: -> [@tag, @attrs, ((if typeof x == 'string' then x else x.toJSON()) for x in @)...]
 
-# Transplant array functions onto Tagr objects.
+# Transplant array functions onto TagrElement objects.
 for n in ['forEach', 'slice', 'map', 'indexOf']
 	do (n) ->
-		Tagr::[n] = (args...) -> Array::[n].apply this, args
+		TagrElement::[n] = (args...) -> Array::[n].apply this, args
 
 # A dynamic query matching a CSS selector. Listeners and styles can be
 # set to the dynamic list, or we can .find() the current list of
@@ -468,7 +468,7 @@ tagr.view =
 # =======
 	
 # Significant whitespace is awesome.
-Tagr::useWhitespace = (toggle = yes) ->
+TagrElement::useWhitespace = (toggle = yes) ->
 	if toggle
 		@style.set {
 			'white-space': [
@@ -484,7 +484,7 @@ Tagr::useWhitespace = (toggle = yes) ->
 		@style.set ['white-space', 'word-wrap'], ''
 
 # Prevent inadvertent selections.
-Tagr::setSelectable = (toggle = yes) ->
+TagrElement::setSelectable = (toggle = yes) ->
 	@style.set [
 		'-webkit-touch-callout'
 		'-webkit-user-select'
