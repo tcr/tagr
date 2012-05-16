@@ -5,7 +5,6 @@
 ###
 
 DOM TODO:
-	Selections with selection.js?
 	compareDocumentPosition
 	offsets, custom JSON serialization
 	data attributes, custom data, custom attributes
@@ -459,11 +458,13 @@ class TextAnchor
 
 convertAnchor = ([node, offset]) ->
 	if node.nodeType == 1
-		return new ElementAnchor(tagr._getWrapper(node), offset)
+		return unless (t = tagr._getWrapper(node))
+		return new ElementAnchor(t, offset)
 	else
+		return unless (t = tagr._getWrapper(node.parentNode))
 		i = 0; n = node
 		while n.previousSibling then n = n.previousSibling; i++
-		return new TextAnchor(tagr._getWrapper(node.parentNode), i, offset)
+		return new TextAnchor(el, i, offset)
 
 # View
 # ====
