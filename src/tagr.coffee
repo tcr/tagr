@@ -371,7 +371,7 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 			if typeof @[i+j] == 'object' then @[i+j]._detach()
 
 		# Insert nodes.
-		right = @_node.childNodes[i]
+		right = @_node.childNodes[i] or null
 		for obj, j in add
 			# Parse arguments.
 			if typeof obj == 'object'
