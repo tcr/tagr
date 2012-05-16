@@ -20,7 +20,6 @@ USAGE TODO:
 	contenteditable
 	server-side version
 	writeContext should obviously take children (cool)
-	browser storage? (recommended solution)
 
 CONTEXTS:
 	should context objects be a subclass?
@@ -315,7 +314,7 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 
 		# Classes.
 		@["classes"] = new ArrayHash this,
-			set: (k, v = yes) => @_node.className = (c for c in @["classes"] when c != k).join('') + (if v then ' ' + k else '')
+			set: (k, v = yes) => @_node.className = "#{(c for c in @["classes"] when c != k).join ''} #{if v then k else ''} #{@_uuidClass}"
 			get: (k) => !!@_node.className.match(new RegExp("\\b#{k}\\b"))
 			remove: (k) => @_node.className = (c for c in @["classes"] when c != k).join('')
 		for name in (@_node.className.match(/\S+/g) or [])
@@ -340,10 +339,10 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 
 	# Create a data attribute with the element UUID. This is used only
 	# for styling.
-	_ensureAttrUuid: ->
-		if not @_node.hasAttribute('data-tagr')
-			@_node.setAttribute 'data-tagr', getElementUniqueId(@_node)
-		@_node.getAttribute('data-tagr')
+	_ensureUuidClass: ->
+		if not @_uuidClass?
+			@_node.className += ' ' + (@_uuidClass = 'tagr-' + getElementUniqueId(@_node))
+		return @_uuidClass
 
 	# Properties.
 	"get": (k) ->
@@ -427,9 +426,8 @@ tagr['TagrQuery'] = do ->
 		constructor: (@ctx, @selector) ->
 			@style = new ArrayHash this,
 				set: mappable keyListable valueListable (k, v) => 
-					fullSelector = "[data-tagr='#{@ctx._ensureAttrUuid()}'] #{@selector}"
 					s = getStylesheet()
-					s.insertRule "#{fullSelector} { #{k}: #{v} }", s.cssRules.length
+					s.insertRule ".#{@ctx._ensureUuidClass()} #{@selector} { #{k}: #{v} }", s.cssRules.length
 					return this
 
 		"addListener": (type, f) ->
