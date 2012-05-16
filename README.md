@@ -11,7 +11,7 @@ styles, event handlers, and markup--and run them on the client. Tagr
 serializes to HTML and CSS, so you get fast rendering times, with the
 flexibility of Tagr's simple and extensible API.
 
-Tagr is a small library, minified (10kb) and gzipped (<4kb). Supports IE7+, Firefox 3.5+, Chrome, Safari, and Opera.
+Tagr is a small library, minified (13kb) and gzipped (<5kb). Supports IE7+, Firefox 3.5+, Chrome, Safari, and Opera.
 
 ## What it does
 
@@ -107,7 +107,7 @@ to use in your application.
 
   Returns a JSON serialization of this element.
 
-* #### el.useWhitespace(*toglee = true*)
+* #### el.useWhitespace(*toggle = true*)
   Sets whether whitespace is significant, via CSS.
 
   #### el.setSelectable(*toggle = true*)

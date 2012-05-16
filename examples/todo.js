@@ -93,7 +93,6 @@ function select(elem) {
 }
 function deselect() {
 	if (!selected) return;
-	console.log(selected.classes.remove)
 	selected.classes.remove('selected');
 	updateControls();
 	var old = selected;
