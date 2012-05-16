@@ -446,6 +446,25 @@ tagr['TagrQuery'] = do ->
 
 		"find": -> (tagr._getWrapper(el) for el in findBySelector(@ctx._node, @selector))
 
+# Anchors
+# =======
+
+class ElementAnchor
+	constructor: (@par, @i) ->
+	toAnchor: -> [@par._node, @i]
+
+class TextAnchor
+	constructor: (@par, @child, @i) ->
+	toAnchor: -> [@par._node.childNodes[@child], @i]
+
+convertAnchor = ([node, offset]) ->
+	if node.nodeType == 1
+		return new ElementAnchor(tagr._getWrapper(node), offset)
+	else
+		i = 0; n = node
+		while n.previousSibling then n = n.previousSibling; i++
+		return new TextAnchor(tagr._getWrapper(node.parentNode), i, offset)
+
 # View
 # ====
 
@@ -462,6 +481,17 @@ tagr['view'] =
 
 	# Get computed CSS property.
 	"getStyle": (t, name) -> getComputedStyle(t._node, name)
+
+	# Cursor selections.
+	"selection":
+		"has": -> Selection.hasSelection(window)
+		"getOrigin": -> convertAnchor Selection.getOrigin(window)
+		"getFocus": -> convertAnchor Selection.getFocus(window)
+		"getStart": -> convertAnchor Selection.getStart(window)
+		"getEnd": -> convertAnchor Selection.getEnd(window)
+		"set": (origin, focus) -> Selection.setSelection(window, origin.toAnchor()..., focus.toAnchor()...)
+		"remove": -> Selection.clearSelection(window)
+
 
 # Utility
 # =======

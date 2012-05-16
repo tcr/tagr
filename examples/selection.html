@@ -1,0 +1,55 @@
+<!doctype html>
+
+<html>
+<head>
+<title>tagr seletion demo</title>
+<script src="https://raw.github.com/timcameronryan/selection.js/master/selection.js"></script>
+<script src="../lib/tagr.js"></script>
+<style>
+body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<h1>tagr selection test</h1>
+
+<script>
+
+var ctx = tagr.writeContext()
+	.useWhitespace(true);
+
+var content = tagr().appendSelf(ctx)
+	.append(
+		['h1', {}, 'Teh heading'],
+		['p', {}, 'One paragraphs'],
+		['hr', {}],
+		['p', {}, 'Two paragraphs'],
+		['ul', {}, 
+			['li', {}, 'List element 1'],
+			['li', {}, 'List element 2']
+		],
+		['p', {}, 'Two paragraphs']
+	).style.set({border: '1px solid red', padding: '10px'})
+
+function ElementAnchor(par, i) {
+	this.par = par;
+	this.i = i;
+}
+
+function TextAnchor(par, child, i) {
+	this.par = par;
+	this.child = child;
+	this.i = i;
+}
+
+function getSel() {
+	console.log(tagr.view.selection.getOrigin())
+	console.log(tagr.view.selection.getFocus())
+}
+
+var button = tagr('button').appendSelf(ctx)
+	.append('Log selection')
+	.on('click', getSel);
+
+</script>
+</body>
+</html>
