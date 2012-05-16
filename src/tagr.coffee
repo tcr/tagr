@@ -147,7 +147,8 @@ spliceObject = (obj, i, del, add...) ->
 	s = document.createElement 'style'
 	s.type = 'text/css'
 	s.media = media
-	return document.getElementsByTagName('head')[0].appendChild s
+	document.getElementsByTagName('head')[0].appendChild s
+	return (s.sheet or s.styleSheet)
 
 @['Script'] = Script = ->
 	s = document.createElement 'script'
@@ -225,7 +226,7 @@ findBySelector = do ->
 			return (root, selector) ->
 				tag = selector.match(SIMPLE_SELECTOR_MATCH)?[1]
 				sheet.addRule(selector, 'foo:bar')
-				res = (x for x in (if tag then root.tags(tag) else root.all) when x.currentStyle.foo == 'bar')
+				res = (x for x in (if tag then root.all.tags(tag) else root.all) when x.currentStyle.foo == 'bar')
 				sheet.removeRule(0)
 				return res
 
@@ -322,7 +323,11 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 
 		# Styles.
 		@["style"] = new ArrayHash this,
-			set: (k, v) => @_node.style[toCamelCase k] = v
+			set: (k, v) =>
+				# IE throws errors on invalid values, and hates whitespace.
+				try
+					@_node.style[toCamelCase k] = v.replace(/^\s*([\S\s]*?)\s*$/, '$1');
+				catch e
 			get: (k) => @_node.style[toCamelCase k]
 			remove: (k) => delete @_node.style[toCamelCase k]
 
@@ -360,7 +365,7 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 		if @_node.addEventListener
 			@_node.addEventListener type, ((e) => @["emit"] type, e), false
 		else if @_node.attachEvent
-			@_node.attachEvent 'on'+type (=> @["emit"] type, window.event)
+			@_node.attachEvent 'on'+type, (=> @["emit"] type, window.event)
 		return super type, f
 
 	# Children.
@@ -379,7 +384,9 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 				n = obj._node
 			else n = document.createTextNode(obj)
 			# Insert node.
-			if n.parentNode then throw new Error 'Must remove element before appending elsewhere.'
+			# IE attaches document parentNode for detached elements: http://www.grauw.nl/blog/entry/486
+			if n.parentNode and n.parentNode.nodeType == 1
+				throw new Error 'Must remove element before appending elsewhere.'
 			@_node.insertBefore n, right
 			if typeof obj == 'object' then obj._attach(this)
 
@@ -390,6 +397,9 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 	"remove": (i) -> @["splice"] i, 1; return this
 	"insert": (i, args...) -> @["splice"] i, 0, args...; return this 
 	"empty": -> @["splice"] 0, @length; return this
+	"indexOf": (t) ->
+		for c, i in this when c == t then return i
+		return -1
 	# Self-manipulation.
 	"appendSelf": (e) -> e["append"](this); return this
 	"prependSelf": (e) -> e["prepend"](this); return this
@@ -406,7 +416,7 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 	"toJSON": -> [@tag, @attrs, ((if typeof x == 'string' then x else x.toJSON()) for x in @)...]
 
 # Transplant array functions onto TagrElement objects.
-for n in ['forEach', 'slice', 'map', 'indexOf']
+for n in ['forEach', 'slice', 'map']
 	do (n) ->
 		TagrElement::[n] = (args...) -> Array::[n].apply this, args
 
@@ -419,21 +429,23 @@ tagr['TagrQuery'] = do ->
 	sCache = {}
 	getStylesheet = (media = 'all') ->
 		return sCache[media] if sCache[media]?
-		s = new Stylesheet(media)
-		return sCache[media] = (s.sheet or s.styleSheet)
+		return sCache[media] = new Stylesheet(media)
 
 	return class TagrQuery extends EventEmitter
 		constructor: (@ctx, @selector) ->
 			@style = new ArrayHash this,
 				set: mappable keyListable valueListable (k, v) => 
 					s = getStylesheet()
-					s.insertRule ".#{@ctx._ensureUuidClass()} #{@selector} { #{k}: #{v} }", s.cssRules.length
+					if s.insertRule?
+						s.insertRule ".#{@ctx._ensureUuidClass()} #{@selector} { #{k}: #{v} }", s.cssRules.length
+					else
+						s.addRule ".#{@ctx._ensureUuidClass()} #{@selector}", "#{k}: #{v}"
 					return this
 
 		"addListener": (type, f) ->
-			@ctx._node.addEventListener type, ((e) =>
+			@ctx.on type, ((e) =>
 				matches = findBySelector(@ctx._node, @selector)
-				n = e.target
+				n = e.target or e.srcElement
 				while n != @ctx._node and n
 					if n in matches
 						f.call tagr._getWrapper(n), e

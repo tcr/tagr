@@ -30,25 +30,12 @@ var content = tagr().appendSelf(ctx)
 		['p', {}, 'Two paragraphs']
 	).style.set({border: '1px solid red', padding: '10px'})
 
-function ElementAnchor(par, i) {
-	this.par = par;
-	this.i = i;
-}
-
-function TextAnchor(par, child, i) {
-	this.par = par;
-	this.child = child;
-	this.i = i;
-}
-
-function getSel() {
-	console.log(tagr.view.selection.getOrigin())
-	console.log(tagr.view.selection.getFocus())
-}
-
 var button = tagr('button').appendSelf(ctx)
 	.append('Log selection')
-	.on('click', getSel);
+	.on('click', function () {
+		console.log('Origin:', tagr.view.selection.getOrigin())
+		console.log('Focus:', tagr.view.selection.getFocus())
+	});
 
 </script>
 </body>
