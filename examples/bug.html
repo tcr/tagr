@@ -1,0 +1,44 @@
+<!doctype html>
+
+<html>
+<head>
+<title>tagr demo</title>
+<script src="../lib/tagr.min.js"></script>
+<style>
+body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<h1>Bug test</h1>
+
+<script>
+
+var ctx = tagr.writeContext()
+	.useWhitespace(true);
+
+(editor = tagr())
+	.appendSelf(ctx)
+	.append(
+		['p', {}, '\n'],
+		['p', {}, 'No break line\n'],
+		['p', {}, 'One break line\n'],
+		['p', {}, 'Two break lines\n\n'],
+		['p', {}, 'Three break lines\n\n\n'],
+		['p', {}, 'One break:\nRight there.']
+	)
+	.set('contentEditable', true)
+	.style.set({border: '1px solid red', padding: '10px'})
+	.select('p').style.set({background: '#0f0'});
+
+tagr('button')
+	.appendSelf(ctx)
+	.append('Show HTML')
+	.on('click', function () {
+		console.log(editor._node.outerHTML)
+	});
+
+</script> 
+
+<p>That's a wrap.</p>
+</body>
+</html>
