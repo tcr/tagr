@@ -219,16 +219,23 @@ getComputedStyle = (n, name) ->
 # Support IE6, IE7 built-in selectors
 # http://weblogs.asp.net/bleroy/archive/2009/08/31/queryselectorall-on-old-ie-versions-something-that-doesn-t-work.aspx
 findBySelector = do ->
-	if document.querySelector?
-		return (root, selector) -> root.querySelectorAll(selector)
-	else if document.documentElement.currentStyle?
-		sheet = new Stylesheet()
-		return (root, selector) ->
-			tag = selector.match(SIMPLE_SELECTOR_MATCH)?[1]
-			sheet.addRule(selector, 'foo:bar')
-			res = (x for x in (if tag then root.tags(tag) else root.all) when x.currentStyle.foo == 'bar')
-			sheet.removeRule(0)
-			return res
+	browser = do ->
+		if document.querySelector?
+			return (root, selector) -> root.querySelectorAll(selector)
+		else if document.documentElement.currentStyle?
+			sheet = new Stylesheet()
+			return (root, selector) ->
+				tag = selector.match(SIMPLE_SELECTOR_MATCH)?[1]
+				sheet.addRule(selector, 'foo:bar')
+				res = (x for x in (if tag then root.tags(tag) else root.all) when x.currentStyle.foo == 'bar')
+				sheet.removeRule(0)
+				return res
+
+	return (root, selector) ->
+		if typeof Sizzle != 'undefined'
+			Sizzle(selector, root)
+		else
+			browser(root, selector)
 
 # Unique property. Use IE's .uniqueId, or use expando for other browsers.
 getElementUniqueId = do ->
