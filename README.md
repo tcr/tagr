@@ -11,7 +11,7 @@ styles, event handlers, and markup--and run them on the client. Tagr
 serializes to HTML and CSS, so you get fast rendering times, with the
 flexibility of Tagr's simple and extensible API.
 
-Tagr is a small library, minified (10kb) and gzipped (<4kb). Supports IE6+, Firefox 3.5+, Chrome, Safari, and Opera.
+Tagr is a small library, minified (10kb) and gzipped (<4kb). Supports IE7+, Firefox 3.5+, Chrome, Safari, and Opera.
 
 ## What it does
 
@@ -19,7 +19,13 @@ Tagr ensures you're never interact with the DOM directly. Instead, work with
 JSON, define your own relative stylesheets and events, and build up widgets
 to use in your application.
 
-## Reference
+## Works well with...
+
+* [store.js](https://github.com/marcuswestin/store.js) by marcuswestin &mdash; Easy client-side storage.
+* [Sizzle](https://github.com/jquery/sizzle) &mdash; Including this runs CSS queries through the Sizzle engine rather than the local browser engine.
+* [selection.js](https://github.com/timcameronryan/selection.js) &mdash; Including this enables the Selection API.
+
+## API Reference
 
 ### `tagr` module
 
