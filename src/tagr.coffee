@@ -61,7 +61,7 @@ class EventEmitter
 # Hash of strings to values.
 
 mappable = (fn) -> (k, v) ->
-	unless arguments.length > 1 or typeof k != 'object'
+	if typeof k == 'object'
 		for mk, mv of k then fn.call this, mk, mv
 		return this
 	return fn.call this, k, v
@@ -125,17 +125,22 @@ spliceObject = (obj, i, del, add...) ->
 			delete obj[i+j]
 	# Shift nodes in array index.
 	if del > add.length # Move down.
-		for j in [i + del...obj.length]
+		for j in [i + del...obj.length] by 1
 			obj[j-del] = obj[j]
 	else if add.length > del # Move up.
-		for j in [obj.length+add.length-1...i]
-			obj[j] = obj[j-add.length]
+		for j in [obj.length+(add.length-del)-1...i] by -1
+			obj[j] = obj[j-(add.length-del)]
 	# Insert new nodes.
 	if add.length
 		for c, j in add
 			obj[i+j] = c
 	obj.length += (-del) + add.length
 	return ret
+
+# HTML escaping.
+escapeHTML = do ->
+	MAP = "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&#34;", "'": "&#39;"
+	return (s) -> s.replace /[&<>'"]/g, (c) -> MAP[c]
 
 # Generics
 # ========
@@ -167,6 +172,9 @@ HTML_DOM_PROPS =
 	longdesc: "longDesc", tabindex: "tabIndex", rowspan: "rowSpan"
 	colspan: "colSpan", enctype: "encType", ismap: "isMap"
 	usemap: "useMap", cellpadding: "cellPadding", cellspacing: "cellSpacing"
+
+VOID_ELEMS = ['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input',
+	'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr']
 
 # Obligatory.
 addDomReadyListener = do ->
@@ -313,6 +321,16 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 		# Tags.
 		@["tag"] = @_node.nodeName.toLowerCase()
 
+		# Properties.
+		@["props"] = new ArrayHash this,
+			set: (k, v) =>
+				@["emit"] 'change:' + k, v
+				@_node[HTML_DOM_PROPS[k] ? k] = v
+			get: (k) => @_node[HTML_DOM_PROPS[k] ? k]
+			remove: (k) => @_node.removeAttribute(k)
+		for attr in @_node.attributes
+			@["props"].set attr.name, attr.value
+
 		# Classes.
 		@["classes"] = new ArrayHash this,
 			set: (k, v = yes) => @_node.className = "#{(c for c in @["classes"] when c != k).join ''} #{if v then k else ''} #{@_uuidClass}"
@@ -344,21 +362,16 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 
 	# Create a data attribute with the element UUID. This is used only
 	# for styling.
+	_uuidClass: ''
 	_ensureUuidClass: ->
-		if not @_uuidClass?
+		if not @_uuidClass
 			@_node.className += ' ' + (@_uuidClass = 'tagr-' + getElementUniqueId(@_node))
 		return @_uuidClass
 
-	# Properties.
-	"get": (k) ->
-		return @_node[HTML_DOM_PROPS[k] ? k]
-	"set": mappable (k, v) ->
-		@["emit"] 'change:' + k, v
-		@_node[HTML_DOM_PROPS[k] ? k] = v
-		return this
-	"remove": (k) ->
-		@_node.removeAttribute(k)
-		return this
+	# Property shorthand.
+	"get": (k) -> @["props"].get(k)
+	"set": (k, v) -> @["props"].set(k, v)
+	"remove": (k) -> @["props"].remove(k)
 
 	# Events.
 	"addListener": (type, f) ->
@@ -368,7 +381,7 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 			@_node.attachEvent 'on'+type, (=> @["emit"] type, window.event)
 		return super type, f
 
-	# Children.
+	# Child manipulation.
 	"splice": (i, del, add...) ->
 		# Remove nodes
 		for j in [0...del]
@@ -391,7 +404,6 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 			if typeof obj == 'object' then obj._attach(this)
 
 		return spliceObject this, i, del, add...
-	# Manipulation.
 	"append": (args...) -> @["splice"](@length, 0, args...); return this
 	"prepend": (args...) -> @["splice"](0, 0, args...); return this
 	"remove": (i) -> @["splice"] i, 1; return this
@@ -406,6 +418,16 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 	"removeSelf": -> @["parent"]["remove"] @["index"](); return this
 	"insertSelf": (parent, i) -> parent["insert"] i, this; return this
 	"index": -> @["parent"].indexOf this
+	# Text manipulation.
+	"spliceText": (c, i, del, add = '') ->
+		unless typeof @[c] == 'string' then throw new Error 'Cannot splice non-text node.'
+		@_node.childNodes[c].replaceData(i, del, add)
+		@[c] = @_node.childNodes[c].data
+		return this
+	"splitText": (c, i) ->
+		unless typeof @[c] == 'string' then throw new Error 'Cannot split non-text node.'
+		@_node.childNodes[c].splitText i
+		return spliceObject this, c, 1, @[c].substr(0, i), @[c].substr(i)
 
 	# Children query.
 	"select": (match) -> new tagr["TagrQuery"] this, match
@@ -414,6 +436,13 @@ tagr['TagrElement'] = class TagrElement extends EventEmitter
 
 	# JSON.
 	"toJSON": -> [@tag, @attrs, ((if typeof x == 'string' then x else x.toJSON()) for x in @)...]
+
+	"toHTML": ->
+		str = ["<#{@tag}"]
+		for k in @props
+			str.push " #{escapeHTML k}=\"#{escapeHTML String @props.get(k)}\""
+		str.push '>', ((if typeof x == 'string' then x else x.toHTML()) for x in @)..., "</#{@tag}>"
+		return str.join ''
 
 # Transplant array functions onto TagrElement objects.
 for n in ['forEach', 'slice', 'map']
