@@ -28,13 +28,13 @@ CONTEXTS:
 
 ###
 
-# Support
-# -------
+# Supporting Libraries
+# ====================
 
-# Classes
-# =======
+# Functions
+# ---------
 
-# Standard shim to replicate Node.js EventEmitter.
+# Replicate Node.js EventEmitter.
 
 class EventEmitter
 	"listeners": (type) ->
@@ -58,7 +58,7 @@ class EventEmitter
 	_maxListeners: 10
 	"setMaxListeners": (@_maxListeners) ->
 
-# Hash of strings to values.
+# Function wrappers to allow keys and values to be mapped and invoked by objects.
 
 mappable = (fn) -> (k, v) ->
 	if typeof k == 'object'
@@ -77,6 +77,70 @@ valueListable = (fn) -> (k, v) ->
 		for mv in v then fn.call this, k, mv
 		return this
 	return fn.call this, k, v
+
+# String extensions.
+
+fromCamelCase = (name) -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
+toCamelCase = (name) -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
+
+# Generic object splicing.
+
+spliceObject = (obj, i, del, add...) ->
+	if i < 0 or isNaN(i) then throw 'Invalid index'
+	# Remove nodes.
+	if del
+		ret = []
+		for j in [0...del]
+			ret.push obj[i+j]
+			delete obj[i+j]
+	# Shift nodes in array index.
+	if del > add.length # Move down.
+		for j in [i + del...obj.length] by 1
+			obj[j-del] = obj[j]
+	else if add.length > del # Move up.
+		for j in [obj.length+(add.length-del)-1...i] by -1
+			obj[j] = obj[j-(add.length-del)]
+	# Insert new nodes.
+	if add.length
+		for c, j in add
+			obj[i+j] = c
+	obj.length += (-del) + add.length
+	return ret
+
+# HTML escaping.
+
+escapeHTML = do ->
+	MAP = "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&#34;", "'": "&#39;"
+	return (s) -> s.replace /[&<>'"]/g, (c) -> MAP[c]
+
+# Classes
+# -------
+
+# Replicate Node.js EventEmitter.
+
+class EventEmitter
+	"listeners": (type) ->
+		if @hasOwnProperty.call (if @_events? then @_events else @_events = {}), type then @_events[type] else @_events[type] = []
+	"on": (args...) -> @["addListener"] args...
+	"once": (type, f) -> @["on"] type, g = (args...) -> f.apply(this, args); @["removeListener"] type, g
+	"addListener": (type, f) ->
+		if (@["listeners"](type).push f) > @_maxListeners and @_maxListeners != 0
+			console?.warn "Possible EventEmitter memory leak detected. #{@_events[type].length} listeners added. Use emitter.setMaxListeners() to increase limit."
+		@["emit"] "newListener", type, f
+		this
+	"removeListener": (type, f) ->
+		if (i = @["listeners"](type).indexOf f) != -1 then @["listeners"](type).splice i, 1
+		this
+	"removeAllListeners": (type) ->
+		for k, v of (@_events or {}) when not type? or type == k then v.splice(0, v.length)
+		this
+	"emit": (type, args...) ->
+		for f in @["listeners"](type) then f.apply this, args
+		@["listeners"](type).length > 0
+	_maxListeners: 10
+	"setMaxListeners": (@_maxListeners) ->
+
+# A hash which retains unique values, but also allows custom behaviors.
 
 class ArrayHash
 	constructor: (chain, handlers = {}) ->
@@ -108,60 +172,8 @@ class ArrayHash
 				delete hash['@'+k]
 			return this
 
-# String extensions.
-
-fromCamelCase = (name) -> name.replace(/([A-Z])/g, "-$1").toLowerCase()
-toCamelCase = (name) -> name.toLowerCase().replace(/\-[a-z]/g, ((s) -> s[1].toUpperCase()))
-
-# Object splicing.
-
-spliceObject = (obj, i, del, add...) ->
-	if i < 0 or isNaN(i) then throw 'Invalid index'
-	# Remove nodes.
-	if del
-		ret = []
-		for j in [0...del]
-			ret.push obj[i+j]
-			delete obj[i+j]
-	# Shift nodes in array index.
-	if del > add.length # Move down.
-		for j in [i + del...obj.length] by 1
-			obj[j-del] = obj[j]
-	else if add.length > del # Move up.
-		for j in [obj.length+(add.length-del)-1...i] by -1
-			obj[j] = obj[j-(add.length-del)]
-	# Insert new nodes.
-	if add.length
-		for c, j in add
-			obj[i+j] = c
-	obj.length += (-del) + add.length
-	return ret
-
-# HTML escaping.
-escapeHTML = do ->
-	MAP = "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&#34;", "'": "&#39;"
-	return (s) -> s.replace /[&<>'"]/g, (c) -> MAP[c]
-
-# Generics
-# ========
-
-# HTML Object generics. Mimicks the handy APIs of the
-# Audio, Image, Video, etc. elements.
-
-@['Stylesheet'] = Stylesheet = (media = 'all') ->
-	s = document.createElement 'style'
-	s.type = 'text/css'
-	s.media = media
-	document.getElementsByTagName('head')[0].appendChild s
-	return (s.sheet or s.styleSheet)
-
-@['Script'] = Script = ->
-	s = document.createElement 'script'
-	s.src = 'about:blank'
-	return document.getElementsByTagName('head')[0].appendChild s
-
 # Dom Tools
-# =========
+# ---------
 
 # Tagr uses direct element properties on the object. Browsers need
 # aMappingToCamelCaseForMostProperties.
@@ -269,8 +281,25 @@ parseSimpleSelector = (selector) ->
 			when '.' then ret.classes.push attr.substr 1
 	return ret
 
+# HTML Generics
+# =============
+
+# HTML Object generics. Mimicks the handy APIs of Audio, Image, Video, etc. elements.
+
+@['Stylesheet'] = Stylesheet = (media = 'all') ->
+	s = document.createElement 'style'
+	s.type = 'text/css'
+	s.media = media
+	document.getElementsByTagName('head')[0].appendChild s
+	return (s.sheet or s.styleSheet)
+
+@['Script'] = Script = ->
+	s = document.createElement 'script'
+	s.src = 'about:blank'
+	return document.getElementsByTagName('head')[0].appendChild s
+
 # Tagr API
-# --------
+# ========
 
 # Default namespace. tagr() is a function to create new TagrElements.
 @['tagr'] = tagr = (simple, attrs = {}) ->
@@ -531,7 +560,6 @@ tagr['view'] =
 		"getEnd": -> convertAnchor Selection.getEnd(window)
 		"set": (origin, focus) -> Selection.setSelection(window, origin.toAnchor()..., focus.toAnchor()...)
 		"remove": -> Selection.clearSelection(window)
-
 
 # Utility
 # =======
