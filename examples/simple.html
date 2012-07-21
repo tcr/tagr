@@ -1,0 +1,30 @@
+<!doctype html>
+
+<html>
+<head>
+<title>tagr seletion demo</title>
+<script src="../lib/tagr.js"></script>
+<style>
+body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<h1>tagr serialization test</h1>
+
+<script>
+
+var ctx = tagr.writeContext()
+	.useWhitespace(true);
+
+var form = tagr('input', {value: 'hello', size: 50})
+ctx.push(
+	form,
+	tagr('button', {}, 'Text content').on('click', function () {
+		console.log('toJSON', JSON.stringify(form))
+		console.log('properties', form.properties())
+	})
+);
+
+</script>
+</body>
+</html>

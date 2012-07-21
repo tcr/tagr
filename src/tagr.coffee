@@ -34,30 +34,6 @@ CONTEXTS:
 # Functions
 # ---------
 
-# Replicate Node.js EventEmitter.
-
-class EventEmitter
-	"listeners": (type) ->
-		if @hasOwnProperty.call (if @_events? then @_events else @_events = {}), type then @_events[type] else @_events[type] = []
-	"on": (args...) -> @["addListener"] args...
-	"once": (type, f) -> @["on"] type, g = (args...) -> f.apply(this, args); @["removeListener"] type, g
-	"addListener": (type, f) ->
-		if (@["listeners"](type).push f) > @_maxListeners and @_maxListeners != 0
-			console?.warn "Possible EventEmitter memory leak detected. #{@_events[type].length} listeners added. Use emitter.setMaxListeners() to increase limit."
-		@["emit"] "newListener", type, f
-		this
-	"removeListener": (type, f) ->
-		if (i = @["listeners"](type).indexOf f) != -1 then @["listeners"](type).splice i, 1
-		this
-	"removeAllListeners": (type) ->
-		for k, v of (@_events or {}) when not type? or type == k then v.splice(0, v.length)
-		this
-	"emit": (type, args...) ->
-		for f in @["listeners"](type) then f.apply this, args
-		@["listeners"](type).length > 0
-	_maxListeners: 10
-	"setMaxListeners": (@_maxListeners) ->
-
 # Function wrappers to allow keys and values to be mapped and invoked by objects.
 
 mappable = (fn) -> (k, v) ->
@@ -302,7 +278,7 @@ parseSimpleSelector = (selector) ->
 # ========
 
 # Default namespace. tagr() is a function to create new TagrElements.
-@['tagr'] = tagr = (simple, attrs = {}) ->
+@['tagr'] = tagr = exports.tagr = (simple, attrs = {}) ->
 	sel = parseSimpleSelector simple or ''
 	e = document.createElement sel.tag
 	if sel.classes.length then e.className = sel.classes.join ' '
@@ -516,11 +492,11 @@ tagr['TagrQuery'] = do ->
 # Anchors
 # =======
 
-class ElementAnchor
+tagr.ElementAnchor = class ElementAnchor
 	constructor: (@par, @i) ->
 	toAnchor: -> [@par._node, @i]
 
-class TextAnchor
+tagr.TextAnchor = class TextAnchor
 	constructor: (@par, @child, @i) ->
 	toAnchor: -> [@par._node.childNodes[@child], @i]
 

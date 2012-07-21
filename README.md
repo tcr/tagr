@@ -139,6 +139,24 @@ to use in your application.
 
   Gets the computed CSS value for `name` of `element`.
 
+* #### tagr.view.selection.has(*window*)
+
+  Returns a boolean if the window has a selection.
+
+* #### tagr.view.selection.getOrigin(*window*)
+
+  #### tagr.view.selection.getFocus(*window*)
+
+  #### tagr.view.selection.getStart(*window*)
+
+  #### tagr.view.selection.getEnd(*window*)
+
+  Returns an anchor.
+
+* #### tagr.view.selection.set(*window*, *origin*, *focus*)
+
+  Sets the selection.
+
 ## License
 
 MIT.

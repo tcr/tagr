@@ -1,0 +1,263 @@
+tagr(tag, props, children)
+tagr.parse(['h1', {}, 'some text here'])
+tagr.getContext(domelement)
+tagr.writeContext(tag, props)
+
+tagr.create HAS to assign itself a document, though what really matters is the base
+
+the ambiguous factor is this:
+
+we care:
+how a page renders/displays boxes
+when resources are loaded
+when the dom is loaded
+
+tagr.view().dom.on('load', function () { ... });
+tagr.view().images.on('load', function () {	... })
+tagr.view().audio.on('load', ...)
+tagr.view().video.on('load', ...)
+tagr.view().audio.on('load', ...)
+tagr.view().box(el)
+
+these are all weird, but probably desired.
+
+========
+
+GOALS
+
+- simplify HTML
+	- consistent
+	- more useful for web apps
+
+Proposition:
+
+- never interact with the dom, or html
+- separate a component definition vs its state
+- persist definition
+- allow abstraction, but don't obscure HTML's functionality
+- HTML widgets must be equivalent to custom widgets
+
+=======
+
+an element has:
+	* tag name, attributes
+		persistable
+	* client state
+		persitable
+	* id, classes
+		also attributes
+		persistable
+	* style
+		persistable
+	* event handlers
+		quasi-persistable
+
+elements thus are unique by:
+	identifiers
+	dynamic properties
+	style
+	[event handlers]
+
+all of these, save for event handlers, and even event handlers, can be persisted
+
+===
+
+an 'input' element has a certain kind of api
+
+input
+type = 'text'
+has certain event handlers
+
+i can describe this as
+
+tagr.query(myinput[type='text'])
+	.on('type', (change inner contents))
+	.style(defaultstyles)
+	.set({properties})
+	.persist('something')
+
+client can change structure, style, properties, etc.
+as long as all client changes are persistable, they are just diffs of original widget state
+and can be persisted further
+
+i should query a type of element, define its events and style and behavior (but not structure)
+then when i create that element and its structure, it has that behavior
+widgets!
+
+# declare how calendar widget works
+# send to client
+# create calendar widget
+# it works
+
+===
+
+tagr
+HTML manipulation for web apps.
+
+Tagr is a clean interface to the DOM. To complement your <canvas> context, create an HTML context. Never construct anything but tags and strings, and never have to mix and match CSS selectors to target your elements.
+
+Combine Tagr with networking libraries like Now.js, and you can compose entire widgets on the server-- styles, event handlers, and markup--and run them on the client. Tagr serializes to HTML and CSS, so you get fast rendering times, with the flexibility of Tagr's simple and extensible API.
+
+Tagr is a small library, minified (13kb) and gzipped (<5kb). Supports IE6+, Firefox 3.5+, Chrome, Safari, and Opera.
+
+====
+
+will there be a shadow dom?
+
+input[type=text] has one
+
+a grid or tree might need one, maybe not
+
+- define it somehow, based or query criteria
+- redefine all existing tagrels
+- this sounds dumb, let's not
+- but maybe
+
+when i create a calendar object, you should abstract its constructor enough that it's okay
+
+$(div.calendar)
+	.populate(['af', ['asdfafs']])
+
+====
+
+do you need an explicit html serialization for all properties?
+no just a JSON serialization... what is JSON will be serialized, what is not will not
+should declare what variables are persistable
+
+html values are persistable.
+change dynamic values like "value" to actually be persisted
+we want to get the true state of the object, and use attributes as merely a serialization format
+
+serialization format:
+
+['h1', {style: {}, more...}, children...]
+
+style can be stored as an attribute of the element
+"style", "class", and "id" are blessed and should be unused almost as properties
+instead, we can persist them as alternate tags in tandem with the existing properties
+(or it is a serialization, whatever)
+style must be a style, but then also address relative child styles
+we'll just cop the unused CSS3 syntax, rendering an invalid but useful style property
+this is okay!
+
+
+===
+
+for now, no nesting of contexts.
+we could do this pretty simply if we had a CSS reset feature that worked for only groups of elements (and not their children)
+
+==== eventemitter
+
+emitter.addListener(event, listener)
+emitter.on(event, listener)
+emitter.once(event, listener)
+emitter.removeListener(event, listener)
+emitter.removeAllListeners([event])
+emitter.setMaxListeners(n)
+emitter.listeners(event)
+emitter.emit(event, [arg1], [arg2], [...])
+Event: 'newListener'
+
+==== styleable
+
+styleable.style({prop: 'value'})
+styleable.rules()
+styleable.addRule()
+styleable.removeRule()
+
+==== watchable
+
+watchable.get('prop')
+watchable.set('prop', 'value')
+watchable.properties()
+watchable.persist('prop')
+watchable.stopPersisting('prop')
+
+==== list
+
+list[0...n] (read)
+list.length
+
+list.pop
+list.push
+list.reverse
+list.shift
+list.sort
+list.splice
+list.unshift
+
+list.concat
+list.indexOf
+list.lastIndexOf
+list.filter
+list.forEach
+list.every
+list.map
+list.some
+list.reduce
+list.reduceRight
+
+
+==
+
+TagrElements
+TagrQuery
+
+====
+
+a context-- is it distinct from other elements?
+we don't need this for tagr, nothing is bound to tagr contexts
+
+we need:
+ - a way to attach external, known resources
+ 	Stylesheet, Script, Image, Audio, Video
+ - it's weird to have style/scripts in DOM
+ - but it's also weird to have hidden input elements with order, or hidden audio elements
+ - ignore resources for now, leave that for boxr
+
+we can, however:
+ - make contexts mutually distinct from each other, such that the styles and events of one do not attach to another
+ - this is cool and reflects yarnify's capabilities also
+ - then we can talk about attaching resources, at that point
+ - P2
+
+====
+
+tagr.view(window).box(something)
+
+=====
+
+boxr
+- box
+- video
+- image
+- audio
+
+boxr().append().remove()
+boxr.video()
+boxr.image()
+boxr.audio()
+
+=====================
+
+DOM TODO:
+	compareDocumentPosition
+	offsets, custom JSON serialization
+	data attributes, custom data, custom attributes
+	browser testing. ie6 leak prevention
+	normalize events
+	verify 'input' value always works
+
+USAGE TODO:
+	create usable widget patterns
+	integrate with Backbone, or replicate model at least
+	comment errything
+	server/browser integration
+	contenteditable
+	server-side version
+	writeContext should obviously take children (cool)
+
+CONTEXTS:
+	should context objects be a subclass?
+	context-interchangeable positions-can mix contexts?
+	tagr.view is properties of context?
