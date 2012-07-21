@@ -1,5 +1,4 @@
-build: ./src/tagr.js
-	cp ./src/tagr.js ./lib/tagr.js 
+build: ./lib/tagr.js
 	closure --js ./lib/tagr.js --js_output_file ./lib/tagr.min.js --compilation_level ADVANCED_OPTIMIZATIONS
 	@ gzip -c ./lib/tagr.min.js > ./lib/tagr.min.js.gz
 	@ echo ""

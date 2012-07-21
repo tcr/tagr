@@ -20,8 +20,10 @@ var form = tagr('input', {value: 'hello', size: 50})
 ctx.push(
 	form,
 	tagr('button', {}, 'Text content').on('click', function () {
+		form.set('size', form.get('size') + 1)
 		console.log('toJSON', JSON.stringify(form))
 		console.log('properties', form.properties())
+		console.log('toHTML', form.toHTML())
 	})
 );
 
