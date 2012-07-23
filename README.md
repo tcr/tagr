@@ -1,161 +1,196 @@
 # tagr
 
-*HTML manipulation for web apps.*
+*Sane HTML manipulation for web apps.*
 
-Tagr is a clean interface to the DOM. To complement your `<canvas>` context,
-create an HTML context. Never construct anything but tags and strings, and never
-have to mix and match CSS selectors to target your elements.
+The DOM is a messy place. Tagr is a clean interface to markup: its concise API is broken down into elements, strings, events, styles, and properties. Tagr is not a replacement for jQuery or "expressive" HTML libraries, nor does it polyfill prefixed CSS properties or HTML5 support. It is instead a solid foundation for manipulating HTML with a consistent, simple API, on which other tools can be built.
 
-Combine Tagr with networking libraries like Now.js, and you can compose entire widgets on the server--
-styles, event handlers, and markup--and run them on the client. Tagr
-serializes to HTML and CSS, so you get fast rendering times, with the
-flexibility of Tagr's simple and extensible API.
+Like a `<canvas>` context, tagr lets you create an HTML context where all styles and events are relative and sandboxed. Tagr can be built procedurally, with JSON, or HTML. You can even construct entire widgets on the server and send them to the client, serializing them as HTML to take advantage of fast parsing times.
 
-Tagr is a small library, minified (13kb) and gzipped (<5kb). Supports IE6+, Firefox 3.5+, Chrome, Safari, and Opera.
-
-## What it does
-
-Tagr ensures you're never interact with the DOM directly. Instead, work with
-JSON, define your own relative stylesheets and events, and build up widgets
-to use in your application.
+Tagr is a small library, minified (15kb) and gzipped (5kb). Supports IE6+, Firefox 3.5+, Chrome, Safari, and Opera.
 
 ## Works well with...
 
-* [store.js](https://github.com/marcuswestin/store.js) by marcuswestin &mdash; Easy client-side storage.
-* [Sizzle](https://github.com/jquery/sizzle) &mdash; Including this runs CSS queries through the Sizzle engine rather than the local browser engine.
+* [Sizzle](https://github.com/jquery/sizzle) &mdash; Including this runs CSS queries through the Sizzle engine rather than the browser's built-in engine.
 * [selection.js](https://github.com/timcameronryan/selection.js) &mdash; Including this enables the Selection API.
+* [store.js](https://github.com/marcuswestin/store.js) by marcuswestin &mdash; Easy client-side storage. 
+
+### Getting started
+
+Elements are instantiated by `tagr.create()`, and text are simple strings.
+
+    > var div = tagr.create('div.alert');
+    > div.push('Hello world!')
+    > div.toHTML()
+    
+    <div class="alert">Hello world!</div>
+
+You can manipulate or index children like an array:
+
+    > div[0]
+    
+    "Hello world!"
+    
+    > div.splice(0, 1, 'Such ', tagr.create('b', {}, 'bold'), ' moves!')
+    > div.toJSON()
+    
+    ['div', {}, 'Such ', ['b', {}, 'bold'], ' moves!']
 
 ## API Reference
 
 ### `tagr` module
 
-* #### tagr([*tag*[, *props*])
+* **tagr.create([_tag_[, _properties_[, _children..._]]) returns TagrElement**  
 
-  Create a new `TagrElement` with the given tag and properties.
+  Create a new `TagrElement` with the given tag and properties, and optionally children.
 
-  #### tagr.parse(*json*) returns TagrElement
+* **tagr.parse(_json_) returns TagrElement**  
 
-  Parse a JSON structure into a tree of `TagrElement`s.
+  Parses a JSON structure or HTML string into a `TagrElement`.
 
-* #### tagr.getContext(*node*) returns TagrElement
+* **tagr.getContext(_node_) returns TagrElement**  
 
   Get a Tagr context for the given node.
 
-  #### tagr.writeContext(*tag*[, *props*]) returns TagrElement
+* **tagr.writeContext(_tag_[, _properties_]) returns TagrElement**  
 
-  `document.write` a `TagrElement` and immediately return it. Useful for self-contained script widgets.
+  `document.write` a `TagrElement` and immediately return it. Useful for self-contained scripts.
 
-* #### tagr.ready(*callback*)
+* **tagr.ready(_callback_)**  
 
   Trigger the given callback once the DOM is (or has already) finished loading.
 
 ### `TagrElement` object
 
-* #### el.get(*key*)
-  #### el.set(*key*, *value*) returns `el`
-  #### el.remove(*key*)
+* **el.get(_key_)**  
+  **el.set(_key_, _value_ | _properties_) returns `el`**  
+  **el.remove(_key_)**  
+  **el.call(_key_, _arguments..._)**  
+  **el.properties() returns `map`**  
 
-  Get, set, or reset a property (attribute) of the element.
+  Manipulate the properties of the lement.
 
-* #### el.style.get(*key*)
-  #### el.style.set(*key*, *value*) returns `el`
-  #### el.style.remove(*key*)
+* **el.style(_key_, _value_ | _styles_) returns `el`**  
+  **el.addRule(_key_, _value_)**  
+  **el.removeRule(_key_)**  
+  **el.rules() returns `map`**  
 
-  Get, set, or reset an element-specific style.
+  Manipulate element styles.
 
-* #### el.classes.get(*key*)
-  #### el.classes.set(*key*[, *toggle = yes*]) returns `el`
-  #### el.classes.remove(*key*)
+* **el.classList.contains(_key_)**  
+  **el.classList.add(_key_)**  
+  **el.classList.remove(_key_)**  
+  **el.classList.toggle(_key_)**  
 
-  Adds or removes a class from this element.
+  Manipulate element classes.
 
-* #### el.on(*event*, *callback*) returns `el`
+* **el.on(_type_, _callback_) returns `el`**  
+  **el.once(_type_, _callback_) returns `el`**  
+  **el.addListener(_type_, _callback_) returns `el`**  
+  **el.removeListener(_type_)**  
+  **el.listeners([_type_])**  
+  **el.removeAllListeners()**  
+  **el.emit(_type_, _args..._)**  
+  **el.setMaxListeners(_count_)**  
 
-  Attach an event listener to this element.
+  Manipulates element events.
 
-* #### el.append(*children...*) returns `el`
-  #### el.prepend(*children...*) returns `el`
-  #### el.insert(*index*, *children...*) return `el`
-  #### el.remove(*index*) returns `el`
+* **el.splice(_index_, _deleteCount_, _insert_...)**  
+  **el.push(_children..._)**  
+  **el.pop() returns `object`**  
+  **el.unshift(_children..._)**  
+  **el.shift() returns `object`**  
+  **el.indexOf(_child_)**  
+  **el.length**  
+  **el[0...length]**  
 
-  Insert or remove `children` at the given position. `Children` must be a list of Strings or `TagrElement`s.
+  Array-like manipulation. Where available, tagr will also use Array methods for `slice`, `sort`, `reverse`, `forEach`, `map`, `every`, `lastIndexOf`, `filter`, `some`, `reduce`, `reduceRight`.
 
-  #### el.empty() returns `el`
+  **el.insert(_index_, _children..._)**  
+  **el.remove(_index_)**  
+  **el.removeAll()**  
 
-  Delete all children elements.
+* **el.insertSelf(_parent_, _index_)**  
+  **el.removeSelf()**  
+  **el.index(_parent_)**  
 
-  #### el.appendSelf(*parent*) returns `el`
-  #### el.prependSelf(*parent*) returns `el`
-  #### el.insertSelf(*parent*, *index*) returns `el`
-  #### el.removeSelf() returns `el`
+  Convenience methods for elements to act on their parents.
 
-  Insert or remove self from another `TagrElement`.
+* **el.insertSelf(_parent_, _index_)**  
+  **el.removeSelf()**  
+  **el.index(_parent_)**  
 
-  #### el.index() returns Number
+  Convenience methods for elements to act on their parents.
 
-  Return the index offset of this element in its parent.
+* **el.spliceText(_index_, _spliceIndex_, _deleteCount_, _insertString_)**  
+  **el.splitText(_index_, _splitIndex_)**  
 
-* #### el.select(*selector*) returns TagrQuery
+  Methods for a parent to manipulate string children.
+
+* **el.query(_selector_) returns TagrQuery**  
 
   Returns a query relative to this element matching `selector`.
 
-  #### el.find(*selector*) returns [TagrElement]
+  **el.find(_selector_) returns TagrElement**  
+  **el.findAll(_selector_) returns [TagrElement]**  
 
-  Returns an array of elements currently matched by `selector` relative to this element. Shorthand for `el.select(selector).find()`.
+  Returns the first or an array of elements currently matched by `selector` relative to this element. Shorthand for `el.select(selector).find[All]()`.
 
-* #### el.toJSON() returns Object
+* **el.persist(_name_)**  
+  **el.stopPersisting(_name_)**  
 
-  Returns a JSON serialization of this element.
+  Instruct the element whether or not to persist certain properties when it is serialized. By default, custom properties are not persisted.
 
-* #### el.useWhitespace(*toggle = true*)
-  Sets whether whitespace is significant, via CSS.
+* **el.toJSON() returns Object**  
+  **el.toHTML() returns String**  
 
-  #### el.setSelectable(*toggle = true*)
-  Sets element selectability, via CSS.
+  Serializes the element. Can be rebuilt into a duplicate tree using `tagr.parse()`, sans the event handlers.
+
+* **el.useWhitespace(_toggle = true_)**  
+  **el.setSelectable(_toggle = true_)**  
+
+  Convenience methods to enable significant whitespace and disable selectability via CSS.
 
 ### `TagrQuery` object
 
-* #### query.on(*event*, *callback*) returns `query`
+* **query.base**  
 
-  Attach an event listener to all elements matched by this selector.
+  The Element context for this TagrQuery.
 
-* #### query.style.set(*key*, *value*) returns `query`
+* **query.on(_event_, _callback_) returns `query`**  
+  **(other EventEmitter methods)**  
 
-  #### query.style.set(*map*) returns `query`
+  Manipulates event handlers for elements matching this query.
 
-  Sets a style for all elements matched by 
+* **query.style(_key_, _value_ | _styles_) returns `query`**  
+  **query.addRule(_key_, _value_)**  
+  **query.removeRule(_key_)**  
+  **query.addRule(_key_, _value_)**  
 
-* #### query.find() returns [TagrElement]
+  Manipulates styles for this selector.
 
-  Return an array of all elements currently matched by this selector.
+* **query.find() returns TagrElement**  
+  **query.findAll() returns [TagrElement]**  
+
+  Return the first or an array of all elements currently matched by this selector.
 
 ### `tagr.view` module
 
-* #### tagr.view.getBox(*element*[, *relativeTo*]) returns Rectangle
+* **tagr.view.getBox(_element_[, _relativeTo_]) returns Rectangle**  
 
   Get the bounding box of the element, with properties `width`, `height`, `top`, `right`, `bottom`, `left`. If an element is provided for `relativeTo`, these coordinates are relative to this other element.
 
-* #### tagr.view.getStyle(*element*, *name*)
+* **tagr.view.getStyle(_element_, _key_)**  
 
-  Gets the computed CSS value for `name` of `element`.
+  Gets the computed CSS value for `key` of `element`.
 
-* #### tagr.view.selection.has(*window*)
+* **tagr.view.selection.has(_window_)**  
+  **tagr.view.selection.getOrigin(_window_)**  
+  **tagr.view.selection.getFocus(_window_)**  
+  **tagr.view.selection.getStart(_window_)**  
+  **tagr.view.selection.getEnd(_window_)**  
+  **tagr.view.selection.set(_window_, _origin_, _focus_)**  
 
-  Returns a boolean if the window has a selection.
-
-* #### tagr.view.selection.getOrigin(*window*)
-
-  #### tagr.view.selection.getFocus(*window*)
-
-  #### tagr.view.selection.getStart(*window*)
-
-  #### tagr.view.selection.getEnd(*window*)
-
-  Returns an anchor.
-
-* #### tagr.view.selection.set(*window*, *origin*, *focus*)
-
-  Sets the selection.
+  Manipulates the window selection when `selection.js` is included.
 
 ## License
 

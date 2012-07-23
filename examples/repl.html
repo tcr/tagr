@@ -1,0 +1,67 @@
+<!doctype html>
+
+<html>
+<head>
+<title>tagr repl</title>
+<script src="../lib/tagr.js"></script>
+<style>
+body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<h1>tagr repl</h1>
+
+<script>
+
+var ctx = tagr.writeContext()
+  .useWhitespace(true);
+
+ctx.push(
+  tagr.create('table#ui', {},
+    tagr.create('tr', {},
+      tagr.create('td', {},
+        tagr.create('pre#console', {}, tagr.create('span', {}, '[tagr repl]', '\n').style('color', 'blue'))
+        ),
+      tagr.create('td', {rowspan: 2},
+        tagr.parse(['div', {id: 'sandbox'},
+          ['h1', {}, 'Small widget demo'),
+          ['input', {value: 'Some text'})
+          )
+        )
+      ),
+    tagr.create('tr', {},
+      tagr.create('td#repl', {},
+        tagr.create('textarea', {})
+        )
+      )
+    )
+  );
+
+var sandbox = ctx.find('#sandbox');
+
+ctx
+  .query('#ui').style({width: '100%', 'border-collapse': 'collapse'}).base
+  .query('#ui td').style({width: '50%', border: '1px solid green', padding: 'none', margin: 'none', 'vertical-align': 'top'}).base
+  .query('#ui #console').style({overflow: 'auto', height: '200px', width: '250px'}).base
+  .query('#ui #sandbox').style({overflow: 'auto'}).base
+  .query('#ui textarea').style({width: '100%', 'box-sizing': 'border-box', display: 'block', margin: 0}).base
+
+ctx
+  .query('#repl textarea').on('keydown', function (e) {
+    if (e.keyCode == 13) {
+      var code = e.target.value;
+      e.target.value = '';
+      e.preventDefault();
+      try {
+        ctx.find('#console').push(tagr.create('span', {}, '> ', String(code), '\n').style('color', 'blue'));
+        var res = eval(code);
+        ctx.find('#console').push(tagr.create('span', {}, String(res), '\n'));
+      } catch (e) {
+        ctx.find('#console').push(tagr.create('span', {}, e.message, '\n').style('color', 'red'));
+      }
+    }
+  }).base
+
+</script>
+</body>
+</html>
