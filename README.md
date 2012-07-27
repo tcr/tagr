@@ -10,7 +10,7 @@ Tagr is a small library, minified (15kb) and gzipped (5kb). Supports IE6+, Firef
 
 ## Works well with...
 
-* [Sizzle](https://github.com/jquery/sizzle) &mdash; Including this runs CSS queries through the Sizzle engine rather than the browser's built-in engine.
+* [Sizzle](https://github.com/jquery/sizzle) &mdash; Including this adds support for complex CSS3 queries using the Sizzle engine.
 * [selection.js](https://github.com/timcameronryan/selection.js) &mdash; Including this enables the Selection API.
 * [store.js](https://github.com/marcuswestin/store.js) by marcuswestin &mdash; Easy client-side storage. 
 
@@ -66,6 +66,13 @@ A Tagr element object can be created using `tagr.create()` or parsing JSON or HT
 * **el.id**
 * **el.parent**
 
+Tagr includes a `classList` property, similar to the DOM property, which lets you add or remove classes easily.
+
+* **el.classList.contains(_key_)**  
+* **el.classList.add(_key_)**  
+* **el.classList.remove(_key_)**  
+* **el.classList.toggle(_key_)**  
+
 #### Properties
 
 Tagr supports modifying built-in DOM properties using `.get(key)` and `.set(key, value)` methods, similar to the Backbone.js API. 
@@ -90,21 +97,12 @@ Custom properties are kept separate from built-in HTML attributes, and are seria
 
 #### Styles
 
-
-
-* **el.classList.contains(_key_)**  
-* **el.classList.add(_key_)**  
-* **el.classList.remove(_key_)**  
-* **el.classList.toggle(_key_)**  
-
-  Manipulate the properties of the lement.
+You can manipulate an element's styles and individual style rules simply:
 
 * **el.style(_key_, _value_ | _styles_) returns `el`**  
-  **el.addRule(_key_, _value_)**  
-  **el.removeRule(_key_)**  
-  **el.rules() returns `map`**  
-
-  Manipulate element styles.
+* **el.addRule(_key_, _value_)**  
+* **el.removeRule(_key_)**  
+* **el.rules() returns `map`**  
 
 #### Events
 
