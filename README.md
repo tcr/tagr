@@ -138,17 +138,17 @@ Tagr elements implement array methods to manipulate and all elements and text in
 
 In addition, Tagr provides all ES5 array utility methods and supports `slice`, `sort`, `reverse`, `indexOf`, `forEach`, `map`, `every`, `lastIndexOf`, `filter`, `some`, `reduce`, and `reduceRight`. Note that arrays returned by these methods are not instances of `TagrElement`.
 
-Tagr provides its own chaining methods to manipulate an element's children in-place:
+Tagr provides its own chainable methods to manipulate an element's children in-place:
   
-* **el.insert(_index_, _children..._)** &mdash; Inserts the children at the given index. The index can be negative; -1 inserts at the end of the array.
-* **el.remove(_index_[, _count_])** &mdash; Removes children at the given index. The index can be negative; -1 removes from the end of the array.
-* **el.children(_children...)** &mdash; Overwrites all children with the given list.
+* **el.insert(_index_, _children..._)** returns `el` &mdash; Inserts the children at the given index. The index can be negative; -1 inserts at the end of the array.
+* **el.remove(_index_[, _count_])** returns `el` &mdash; Removes children at the given index. The index can be negative; -1 removes from the end of the array.
+* **el.children(_children...)** returns `el` &mdash; Overwrites all children with the given list.
 
 As well as methods to manipulate a child itself:
 
-* **el.insertSelf(_parent_, _index_)**  
-* **el.removeSelf()**  
-* **el.indexOfSelf()**  
+* **el.insertSelf(_parent_, _index_)** returns `el`
+* **el.removeSelf()**   returns `el`
+* **el.indexOfSelf()**   returns `el`
 
 Since text nodes are represented in Tagr as regular strings, Tagr elements provide methods to split or splice text directly:
 
