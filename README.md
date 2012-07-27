@@ -1,6 +1,6 @@
 # tagr
 
-*Sane HTML manipulation for web apps.*
+*Solid HTML manipulation for web apps.*
 
 The DOM is a messy place. Tagr is a concise interface to the DOM: work with only elements and strings, and manipulate their events, styles, and properties. Tagr is not a "rapid" web development library, but instead a solid foundation for manipulating HTML with a consistent API on which other tools can be built.
 
@@ -35,31 +35,30 @@ You can manipulate or index children like an array:
     
     ['div', {}, 'Such ', ['b', {}, 'bold'], ' moves!']
 
+Attach elements to a document by creating a context, from an existing element or writing one directly:
+
+    > tagr.getContext(document.body)
+    > tagr.writeContext('div#contents', {}, 'Great for inline widgets!')
+
 ## API Reference
 
 ### `tagr` module
 
-* **tagr.create([_tag_[, _properties_[, _children..._]]) returns TagrElement**  
+You can create elements with the method `tagr.create()`, or parse a JSON tree or HTML with `tagr.parse()` to return a `TagrElement`.
 
-  Create a new `TagrElement` with the given tag and properties, and optionally children.
+* **tagr.create([_tag_[, _properties_[, _children..._]]) returns TagrElement** &mdash; Create a new `TagrElement` with the given tag and properties, and optionally children.
+* **tagr.parse(_json_) returns TagrElement** &mdash; Parses a JSON structure or HTML string into a `TagrElement`.
 
-* **tagr.parse(_json_) returns TagrElement**  
+Your entry point to the DOM is a Tagr "context". The DOM inside a context is mirrored by Tagr and must only be modified with Tagr commands. You can either load an existing element and its children, or write one into the DOM directly:
 
-  Parses a JSON structure or HTML string into a `TagrElement`.
+* **tagr.getContext(_node_) returns TagrElement** &mdash; Get a Tagr context for the given DOM node.
+* **tagr.writeContext(_tag_[, _properties_[, children...]]) returns TagrElement** &mdash; `document.write` a `TagrElement` and immediately return it. Useful for self-contained scripts.
 
-* **tagr.getContext(_node_) returns TagrElement**  
+And the obligatory DOMContentLoaded polyfill:
 
-  Get a Tagr context for the given node.
+* **tagr.ready(_callback_)** &mdash; Trigger the given callback once the DOM is (or has already) finished loading.
 
-* **tagr.writeContext(_tag_[, _properties_]) returns TagrElement**  
-
-  `document.write` a `TagrElement` and immediately return it. Useful for self-contained scripts.
-
-* **tagr.ready(_callback_)**  
-
-  Trigger the given callback once the DOM is (or has already) finished loading.
-
-### `TagrElement` object
+### `TagrElement` class
 
 A Tagr element object can be created using `tagr.create()` or parsing JSON or HTML using `tagr.parse()`. It has the following read-only properties:
 
@@ -158,7 +157,7 @@ Since text nodes are represented in Tagr as regular strings, Tagr elements provi
 * **el.spliceText(_index_, _spliceIndex_, _deleteCount_, _insertString_)**  
 * **el.splitText(_index_, _splitIndex_)**  
 
-#### Queries
+#### Relative Queries
 
 A `TagrQuery` can be generated relative to any Tagr element:
 
@@ -190,47 +189,37 @@ Tagr is for web apps, so a few convenience functions are included to get you sta
 * **el.useWhitespace(_toggle = true_)** &mdash; Sets that whitespace should be significant. Since you aren't dealing with a markup language, you can have your non-breaking cake and eat it, too.
 * **el.setSelectable(_toggle = true_)** &mdash; Sets that element text should not be selectable by the cursor.
 
-### `TagrQuery` object
+### `TagrQuery` class
 
-* **query.base**  
+A Tagr query encapsulates a base element and a selector to match elements below it. A query can be created using `TagrElement::query()`, and the query contains a reference to the base element:
 
-  The Element context for this TagrQuery.
+* **query.base** &mdash; The Element context for this TagrQuery.
 
-* **query.on(_event_, _callback_) returns `query`**  
-  **(other EventEmitter methods)**  
+Many of the same actions you can perform on a `TagrElement` can be done for a dynamic query. You can listen for and emit events, or create styles and rules:
 
-  Manipulates event handlers for elements matching this query.
+    > ctx.query('.tooltip').on('mouseover', function () { /* display tooltip */ })
+    > ctx.query('.btn').style({'background': 'blue'})
 
-* **query.style(_key_, _value_ | _styles_) returns `query`**  
-  **query.addRule(_key_, _value_)**  
-  **query.removeRule(_key_)**  
-  **query.addRule(_key_, _value_)**  
-
-  Manipulates styles for this selector.
+Additionally, at any point you can return a static array of elements which match the query at the time it was invoked:
 
 * **query.find() returns TagrElement**  
-  **query.findAll() returns [TagrElement]**  
+* **query.findAll() returns [TagrElement]**
 
-  Return the first or an array of all elements currently matched by this selector.
+### `tagr.view` namespace
 
-### `tagr.view` module
+_(This is a work in progress.)_
 
-* **tagr.view.getBox(_element_[, _relativeTo_]) returns Rectangle**  
+* **tagr.view.getBox(_element_[, _relativeTo_]) returns Rectangle** &mdash; Get the bounding box of the element, with properties `width`, `height`, `top`, `right`, `bottom`, `left`. If an element is provided for `relativeTo`, these coordinates are relative to this other element.
+* **tagr.view.getStyle(_element_, _key_)**  &mdash; Gets the computed CSS value for `key` of `element`.
 
-  Get the bounding box of the element, with properties `width`, `height`, `top`, `right`, `bottom`, `left`. If an element is provided for `relativeTo`, these coordinates are relative to this other element.
-
-* **tagr.view.getStyle(_element_, _key_)**  
-
-  Gets the computed CSS value for `key` of `element`.
+The selection API is available when [selection.js](http://github.com/timcameronryan/selection.js) is included. All elements are TagrElements:
 
 * **tagr.view.selection.has(_window_)**  
-  **tagr.view.selection.getOrigin(_window_)**  
-  **tagr.view.selection.getFocus(_window_)**  
-  **tagr.view.selection.getStart(_window_)**  
-  **tagr.view.selection.getEnd(_window_)**  
-  **tagr.view.selection.set(_window_, _origin_, _focus_)**  
-
-  Manipulates the window selection when `selection.js` is included.
+* **tagr.view.selection.getOrigin(_window_)**  
+* **tagr.view.selection.getFocus(_window_)**  
+* **tagr.view.selection.getStart(_window_)**  
+* **tagr.view.selection.getEnd(_window_)**  
+* **tagr.view.selection.set(_window_, _origin_, _focus_)**
 
 ## License
 
