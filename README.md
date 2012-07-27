@@ -73,7 +73,7 @@ Tagr includes a `classList` property, similar to the DOM property, which lets yo
 * **el.classList.remove(_key_)**  
 * **el.classList.toggle(_key_)**  
 
-#### Properties
+#### Element properties
 
 Tagr supports modifying built-in DOM properties using `.get(key)` and `.set(key, value)` methods, similar to the Backbone.js API. 
 
@@ -95,7 +95,7 @@ Custom properties are allowed on elements, and provide a powerful way to create 
 
 Custom properties are kept separate from built-in HTML attributes, and are serialized as `data-*` attributes to HTML and JSON. See **Serialization** below.
 
-#### Styles
+#### Element styles
 
 You can manipulate an element's styles and individual style rules simply:
 
@@ -104,7 +104,7 @@ You can manipulate an element's styles and individual style rules simply:
 * **el.removeRule(_key_)**  
 * **el.rules() returns `map`**  
 
-#### Events
+#### Element events
 
 Tagr elements support the familiar [EventEmitter](http://nodejs.org/api/events.html) API from Node.js. All listeners are attached to the DOM element themselves:
 
@@ -155,7 +155,7 @@ Since text nodes are represented in Tagr as regular strings, Tagr elements provi
 * **el.spliceText(_index_, _spliceIndex_, _deleteCount_, _insertString_)**  
 * **el.splitText(_index_, _splitIndex_)**  
 
-#### Relative Queries
+#### Relative queries
 
 A `TagrQuery` can be generated relative to any Tagr element:
 
