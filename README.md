@@ -117,7 +117,7 @@ Tagr elements support the familiar [EventEmitter](http://nodejs.org/api/events.h
 * **el.emit(_type_, _args..._)**  
 * **el.setMaxListeners(_count_)**  
 
-Note that Tagr does not have a mechanism to propagate an event to itself and its ancestors. (It probably should.)
+Note that Tagr does not have a mechanism to propagate an event to itself and its ancestors. (Though maybe it should.)
   
 #### Element children
 
@@ -126,7 +126,9 @@ Tagr elements act like arrays, and inherit the array prototype. You can iterate 
 * **el.length**  
 * **el[0...length]**
 
-Tagr elements implement array methods to manipulate and all elements and text in place. You can pass in other tagr elements or raw strings as children:
+Tagr elements implement array methods to manipulate and all elements and text in-place. You can pass in other tagr elements or raw strings as children. Whenever an element is attached to a parent, an `attached` event is fired on the element, and vice versa for `detached`. This can be used to dynamically enable behaviors for elements.
+
+These methods manipulate an element's children:
   
 * **el.push(_children..._)**  
 * **el.pop() returns `object`**  
@@ -138,7 +140,7 @@ Tagr elements implement array methods to manipulate and all elements and text in
 
 In addition, Tagr provides all ES5 array utility methods and supports `slice`, `sort`, `reverse`, `indexOf`, `forEach`, `map`, `every`, `lastIndexOf`, `filter`, `some`, `reduce`, and `reduceRight`. Note that arrays returned by these methods are not instances of `TagrElement`.
 
-Tagr provides its own chainable methods to manipulate an element's children in-place:
+Tagr also provides its own chainable methods to manipulate an element's children in-place:
   
 * **el.insert(_index_, _children..._)** returns `el` &mdash; Inserts the children at the given index. The index can be negative; -1 inserts at the end of the array.
 * **el.remove(_index_[, _count_])** returns `el` &mdash; Removes children at the given index. The index can be negative; -1 removes from the end of the array.
