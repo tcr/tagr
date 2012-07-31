@@ -1,0 +1,17 @@
+{
+  "author": "Tim Cameron Ryan <tim@timryan.org> (http://timryan.org)",
+  "name": "tagr",
+  "description": "Solid HTML manipulation for webapps.",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/timcameronryan/tagr.git"
+  },
+  "main": "lib/tagr.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
