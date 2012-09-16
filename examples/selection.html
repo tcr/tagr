@@ -3,7 +3,7 @@
 <html>
 <head>
 <title>tagr seletion demo</title>
-<script src="https://raw.github.com/timcameronryan/selection.js/master/selection.js"></script>
+<script src="https://raw.github.com/tcr/selection.js/master/selection.js"></script>
 <script src="../lib/tagr.js"></script>
 <style>
 body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto; }
@@ -14,24 +14,26 @@ body { font-family: 'Helvetica Neue', 'Helvetica'; width: 500px; margin: 0 auto;
 
 <script>
 
-var ctx = tagr.writeContext()
-	.useWhitespace(true);
+var ctx = tagr.writeContext();
+	//.useWhitespace(true);
 
-var content = tagr().appendSelf(ctx)
-	.append(
-		['h1', {}, 'Teh heading'],
-		['p', {}, 'One paragraphs'],
-		['hr', {}],
-		['p', {}, 'Two paragraphs'],
-		['ul', {}, 
-			['li', {}, 'List element 1'],
-			['li', {}, 'List element 2']
-		],
-		['p', {}, 'Two paragraphs']
-	).style.set({border: '1px solid red', padding: '10px'})
+var content = tagr.create()
+	.insertSelf(ctx, -1)
+	.insert(0, [
+		tagr.create('h1', {}, 'Teh heading'),
+		tagr.create('p', {}, 'One paragraphs'),
+		tagr.create('hr', {}),
+		tagr.create('p', {}, 'Two paragraphs'),
+		tagr.create('ul', {}, 
+			tagr.create('li', {}, 'List element 1'),
+			tagr.create('li', {}, 'List element 2')
+		),
+		tagr.create('p', {}, 'Two paragraphs')
+	]).style({border: '1px solid red', padding: '10px'})
 
-var button = tagr('button').appendSelf(ctx)
-	.append('Log selection')
+var button = tagr.create('button')
+	.insertSelf(ctx, -1)
+	.insert(0, 'Log selection')
 	.on('click', function () {
 		console.log('Origin:', tagr.view.selection.getOrigin())
 		console.log('Focus:', tagr.view.selection.getFocus())
