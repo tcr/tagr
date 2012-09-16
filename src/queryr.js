@@ -3,7 +3,7 @@
   else if (typeof context['define'] == 'function' && context['define']['amd']) define(name, definition)
   else context[name] = definition()
 })('queryr', function () {
-  var doc = document
+  var doc = this.document || {}
     , html = doc.documentElement
     , byClass = 'getElementsByClassName'
     , byTag = 'getElementsByTagName'
