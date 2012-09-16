@@ -15,13 +15,13 @@
     if (App.selected) {
       App.deselect();
     }
-    (App.selected = elem).classes.set('selected');
+    (App.selected = elem).classList.add('selected');
     App.refreshControls();
   };
 
   App.deselect = function () {
     if (App.selected) {
-      App.selected.classes.remove('selected');
+      App.selected.classList.remove('selected');
       App.refreshControls();
       var last = App.selected;
       App.selected = null;
@@ -38,8 +38,9 @@
   // Manipulation.
 
   App.addItem = function (val) {
-    var item = tagr('.entry', {}, val);
-    App.list.append(item);
+    var item = tagr.create('.entry', {}, val);
+    App.list.push(item);
+    App.refreshControls();
   };
 
   App.removeItem = function () {
@@ -78,7 +79,7 @@
   // to the last element to be clicked. Note that none of these
   // elements have been inserted yet.
 
-  App.list = tagr('.list');
+  App.list = tagr.create('.list');
 
   App.list
     .style({
@@ -104,11 +105,11 @@
 
   // Create the control panel.
 
-  App.controls = tagr('div', {},
-    tagr('button#add', {}, 'Add Item'),
-    tagr('button#remove', {}, 'Remove Item'),
-    tagr('button#up', {}, 'Move Up'),
-    tagr('button#down', {}, 'Move Down')
+  App.controls = tagr.create('div', {},
+    tagr.create('button#add', {}, 'Add Item'),
+    tagr.create('button#remove', {}, 'Remove Item'),
+    tagr.create('button#up', {}, 'Move Up'),
+    tagr.create('button#down', {}, 'Move Down')
   );
 
   App.controls
@@ -121,8 +122,8 @@
   // method doesn't require waiting for the document finish loading.
 
   App.ctx = tagr.writeContext('#todo', {}, App.list, App.controls)
-    .useWhitespace(true)
-    .setSelectable(false)
+    //.useWhitespace(true)
+    //.setSelectable(false)
     .style({
       'border': '1px outset #aaa',
       'background': '#ccc',
