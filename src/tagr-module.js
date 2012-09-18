@@ -3,66 +3,66 @@
  */
 
 /**
- * EventEmitter implementation
- * http://nodejs.org/api/events.html
- */
-
-if (typeof EventEmitter === 'undefined' && typeof module === 'undefined') {
-  var EventEmitter = function () { };
-
-  EventEmitter.prototype.listeners = function (type) {
-    return this.hasOwnProperty.call(this._events || (this._events = {}), type) ? this._events[type] : this._events[type] = [];
-  };
-
-  EventEmitter.prototype.addListener = function (type, f) {
-    if (this._maxListeners !== 0 && this.listeners(type).push(f) > (this._maxListeners || 10)) {
-      console && console.warn('Possible EventEmitter memory leak detected. ' + this._events[type].length + ' listeners added. Use emitter.setMaxListeners() to increase limit.');
-    }
-    this.emit("newListener", type, f);
-    return this;
-  };
-
-  EventEmitter.prototype.on = function (type, f) {
-    return this.addListener(type, f);
-  }
-
-  EventEmitter.prototype.removeListener = function (type, f) {
-    var i;
-    (i = this.listeners(type).indexOf(f)) != -1 && this.listeners(type).splice(i, 1);
-    return this;
-  };
-
-  EventEmitter.prototype.removeAllListeners = function (type) {
-    for (var k in this._events) {
-      (!type || type == k) && this._events[k].splice(0, this._events[k].length);
-    }
-    return this;
-  };
-
-  EventEmitter.prototype.emit = function (type) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    for (var i = 0, fns = this.listeners(type).slice(); i < fns.length; i++) {
-      fns[i].apply(this, args);
-    }
-    return fns.length;
-  };
-
-  EventEmitter.prototype.setMaxListeners = function (maxListeners) {
-    this._maxListeners = maxListeners;
-  };
-  
-} else {
-  // Node.js import.
-  var EventEmitter = require('events').EventEmitter;
-}
-
-/**
  * Tagr code
  */
 
 var tagr = (function (Selection) {
 
   var isBrowser = typeof window !== 'undefined';
+
+  /**
+   * EventEmitter implementation
+   * http://nodejs.org/api/events.html
+   */
+
+  if (typeof EventEmitter === 'undefined' && typeof module === 'undefined') {
+    var EventEmitter = function () { };
+
+    EventEmitter.prototype.listeners = function (type) {
+      return this.hasOwnProperty.call(this._events || (this._events = {}), type) ? this._events[type] : this._events[type] = [];
+    };
+
+    EventEmitter.prototype.addListener = function (type, f) {
+      if (this._maxListeners !== 0 && this.listeners(type).push(f) > (this._maxListeners || 10)) {
+        console && console.warn('Possible EventEmitter memory leak detected. ' + this._events[type].length + ' listeners added. Use emitter.setMaxListeners() to increase limit.');
+      }
+      this.emit("newListener", type, f);
+      return this;
+    };
+
+    EventEmitter.prototype.on = function (type, f) {
+      return this.addListener(type, f);
+    }
+
+    EventEmitter.prototype.removeListener = function (type, f) {
+      var i;
+      (i = this.listeners(type).indexOf(f)) != -1 && this.listeners(type).splice(i, 1);
+      return this;
+    };
+
+    EventEmitter.prototype.removeAllListeners = function (type) {
+      for (var k in this._events) {
+        (!type || type == k) && this._events[k].splice(0, this._events[k].length);
+      }
+      return this;
+    };
+
+    EventEmitter.prototype.emit = function (type) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      for (var i = 0, fns = this.listeners(type).slice(); i < fns.length; i++) {
+        fns[i].apply(this, args);
+      }
+      return fns.length;
+    };
+
+    EventEmitter.prototype.setMaxListeners = function (maxListeners) {
+      this._maxListeners = maxListeners;
+    };
+    
+  } else if (typeof EventEmitter == 'undefined' && typeof require != 'undefined') {
+    // Node.js import.
+    var EventEmitter = require('events').EventEmitter;
+  }
 
   /**
    * Shorthands and polyfills.
@@ -94,7 +94,7 @@ var tagr = (function (Selection) {
   }
 
   function trim (str) {
-    return str.replace(/^\s+|\s+$/g, '');
+    return String(str).replace(/^\s+|\s+$/g, '');
   };
 
   function fromCamelCase (name) {
@@ -749,7 +749,11 @@ var tagr = (function (Selection) {
         arg._attach(this);
       }
     }
-    return Array.prototype.splice.apply(this, arguments);
+    var ret = Array.prototype.splice.apply(this, arguments);
+    for (var j = 0; j < arguments.length - 2; j++) {
+      this.emit('insert', j, arguments[j + 2]);
+    }
+    return ret;
   };
 
   DOMTagrElement.prototype['push'] = function () {
