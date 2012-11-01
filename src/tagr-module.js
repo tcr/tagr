@@ -340,7 +340,32 @@ var tagr = (function (Selection) {
 
   // Chainable manipulation.
 
+  // TODO better merge with DOM extension.
+  // TODO _attach _detach.
+  TagrElement.prototype['splice'] = function (i, del) {
+    for (var j = 0; j < del; j++) {
+      if (typeof this[j] != 'string') {
+        this[j].parent = null;
+      }
+    }
+    for (var j = 0; j < arguments.length - 2; j++) {
+      var arg = arguments[j + 2];
+      if (typeof arg != 'string') {
+        arg.parent = this;
+      }
+    }
+    var ret = Array.prototype.splice.apply(this, arguments);
+    for (var j = 0; j < arguments.length - 2; j++) {
+      this.emit('insert', j, arguments[j + 2]);
+    }
+    return ret;
+  }
+
   TagrElement.prototype['insert'] = chainable(function (i, args) {
+    if (typeof i != 'number') {
+      args = i;
+      i = -1;
+    }
     if (i < 0) {
       i += this.length + 1;
     }
@@ -732,6 +757,9 @@ var tagr = (function (Selection) {
     var parent = this._node;
     for (var j = 0; j < del; j++) {
       parent.removeChild(parent.childNodes[i]);
+      if (typeof this[j] != 'string') {
+        this[j]._detach();
+      }
     }
     var right = parent.childNodes[i];
     for (var j = 0; j < arguments.length - 2; j++) {
