@@ -480,8 +480,18 @@ var tagr = (function (Selection) {
     this.i = i;
   }
 
+  ElementAnchor.prototype.type = 'element';
+
   ElementAnchor.prototype.toAnchor = function() {
     return [this.par._node, this.i];
+  };
+
+  ElementAnchor.prototype.equals = function (cmp) {
+    return cmp && this.par == cmp.par && this.i == cmp.i;
+  };
+
+  ElementAnchor.prototype.clone = function () {
+    return new ElementAnchor(this.par, this.i);
   };
 
   function TextAnchor (par, child, i) {
@@ -490,8 +500,18 @@ var tagr = (function (Selection) {
     this.i = i;
   }
 
+  TextAnchor.prototype.type = 'text';
+
   TextAnchor.prototype.toAnchor = function() {
     return [this.par._node.childNodes[this.child], this.i];
+  };
+
+  TextAnchor.prototype.equals = function (cmp) {
+    return cmp && this.par == cmp.par && this.child == cmp.child && this.i == cmp.i;
+  };
+
+  TextAnchor.prototype.clone = function () {
+    return new TextAnchor(this.par, this.child, this.i);
   };
 
   /**
@@ -904,7 +924,7 @@ var tagr = (function (Selection) {
 
   // Function to convert a [node, offset] pair into a normalized anchor.
 
-  function convertAnchor (win, arg) {
+  function convertAnchor (arg) {
     var node = arg[0], offset = arg[1], el;
     if (node.nodeType === 1) {
       if (!(el = domdata.get(node))) {
