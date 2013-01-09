@@ -1083,7 +1083,7 @@ var tagr = (function (Selection) {
 if (typeof module !== 'undefined') {
   module.exports = tagr;
 
-  module.exports.staticPath = __dirname + '/lib';
+  module.exports.staticPath = __dirname;
 }
 
 //console.log(tagr.create('div', 'Hey mom!', tagr.create('b', 'Bold text.')));
