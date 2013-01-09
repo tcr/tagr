@@ -1,6 +1,6 @@
-# tagr
+# tagr, portable DOM manipulation
 
-*Solid HTML manipulation for web apps.*
+# WIP
 
 The DOM is a messy place. Tagr is a concise interface to the DOM: work with only elements and strings, and manipulate their events, styles, and properties. Tagr is not a "rapid" web development library, but instead a solid foundation for manipulating HTML with a consistent API on which other tools can be built.
 

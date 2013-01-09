@@ -2,7 +2,7 @@
   "author": "Tim Cameron Ryan <tim@timryan.org> (http://timryan.org)",
   "name": "tagr",
   "description": "Solid HTML manipulation for webapps.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/tcr/tagr"
