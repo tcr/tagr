@@ -1080,10 +1080,9 @@ var tagr = (function (Selection) {
 
 })(this.Selection);
 
-if (typeof module !== 'undefined') {
+if (typeof module !== 'undefined' && module.exports) {
   module.exports = tagr;
-
   module.exports.staticPath = __dirname;
+} else {
+  this.tagr = tagr;
 }
-
-//console.log(tagr.create('div', 'Hey mom!', tagr.create('b', 'Bold text.')));
