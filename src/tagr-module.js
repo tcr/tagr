@@ -777,8 +777,8 @@ var tagr = (function (Selection) {
     var parent = this._node;
     for (var j = 0; j < del; j++) {
       parent.removeChild(parent.childNodes[i]);
-      if (typeof this[j] != 'string') {
-        this[j]._detach();
+      if (typeof this[i + j] != 'string') {
+        this[i + j]._detach();
       }
     }
     var right = parent.childNodes[i];
