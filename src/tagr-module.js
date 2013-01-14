@@ -1,5 +1,5 @@
 /**
- * @license Tagr, Solid HTML manipulation for webapps. MIT Licensed.
+ * @license tagr, a portable DOM. MIT Licensed.
  */
 
 /**
@@ -672,6 +672,7 @@ var tagr = (function (Selection) {
   var DOMTagrElement = function (tag, node, win) {
     this._node = node || win.document.createElement(tag);
     TagrElement.call(this, tag);
+    this.stopPersisting('style');
   };
 
   inherits(DOMTagrElement, TagrElement.prototype);
@@ -712,6 +713,7 @@ var tagr = (function (Selection) {
 
   DOMTagrElement.prototype["set"] = chainable(mappable(expandKeys(expandValues(function(key, value) {
     this.emit('change:' + key, value);
+    if (key.match(/^data\-/)) this._node.dataset[key.replace(/^data\-/, '')] = value;
     (HTML_DOM_PROPS[key] || key) in this._node
       ? this._node[HTML_DOM_PROPS[key] || key] = value
       : this._props[key] = value;
@@ -719,6 +721,7 @@ var tagr = (function (Selection) {
 
   DOMTagrElement.prototype["unset"] = function (key) {
     this.emit('change:' + key);
+    if (key.match(/^data\-/)) delete this._node.dataset[key.replace(/^data\-/, '')];
     return (HTML_DOM_PROPS[key] || key) in this._node
       ? (delete this._node[HTML_DOM_PROPS[key] || key])
       : (delete this._props[key]);
@@ -739,10 +742,10 @@ var tagr = (function (Selection) {
         props[k] = this._props;
       }
     }
-    //  2) Have an attribute node (this takes the node value) and not stopPersist()ed
+    //  2) Have an attribute node (this takes the node value) and not stopPersisting()ed
     for (var i = 0; i < this._node.attributes.length; i++) {
       var attr = this._node.attributes[i];
-      if (this._nopersist[attr.name] !== false) {
+      if (this._nopersist[attr.name] !== true) {
         props[attr.name] = this._node[HTML_DOM_PROPS[attr.name] || attr.name];
       }
     }
