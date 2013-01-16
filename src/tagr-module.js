@@ -970,16 +970,20 @@ var tagr = (function (Selection) {
           return Selection.hasSelection(win);
         },
         "getOrigin": function () {
-          return convertAnchor(Selection.getOrigin(win));
+          var anchor = Selection.getOrigin(win);
+          return anchor && convertAnchor(anchor);
         },
         "getFocus": function () {
-          return convertAnchor(Selection.getFocus(win));
+          var anchor = Selection.getFocus(win);
+          return anchor && convertAnchor(anchor);
         },
         "getStart": function () {
-          return convertAnchor(Selection.getStart(win));
+          var anchor = Selection.getStart(win);
+          return anchor && convertAnchor(anchor);
         },
         "getEnd": function () {
-          return convertAnchor(Selection.getEnd(win));
+          var anchor = Selection.getEnd(win);
+          return anchor && convertAnchor(anchor);
         },
         "set": function (origin, focus) {
           return Selection.setSelection.apply(Selection, [win].concat(origin.toAnchor(), focus.toAnchor()));
