@@ -739,7 +739,7 @@ var tagr = (function (Selection) {
     //  1) They are custom properties not unpersisted.
     for (var k in this._props) {
       if (hasOwnProperty(this._props, k) && !this._nopersist[k]) {
-        props[k] = this._props;
+        props[k] = this._props[k];
       }
     }
     //  2) Have an attribute node (this takes the node value) and not stopPersisting()ed
