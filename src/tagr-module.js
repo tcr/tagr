@@ -706,6 +706,7 @@ var tagr = (function (Selection) {
   // Properties.
 
   DOMTagrElement.prototype["get"] = function (key) {
+    if (key.match(/^data\-/)) return this._node.getAttribute(key);
     return (HTML_DOM_PROPS[key] || key) in this._node
       ? this._node[HTML_DOM_PROPS[key] || key]
       : this._props[key];
@@ -713,7 +714,7 @@ var tagr = (function (Selection) {
 
   DOMTagrElement.prototype["set"] = chainable(mappable(expandKeys(expandValues(function(key, value) {
     this.emit('change:' + key, value);
-    if (key.match(/^data\-/)) this._node.dataset[key.replace(/^data\-/, '')] = value;
+    if (key.match(/^data\-/)) return this._node.setAttribute(key, value), value;
     (HTML_DOM_PROPS[key] || key) in this._node
       ? this._node[HTML_DOM_PROPS[key] || key] = value
       : this._props[key] = value;
@@ -721,7 +722,7 @@ var tagr = (function (Selection) {
 
   DOMTagrElement.prototype["unset"] = function (key) {
     this.emit('change:' + key);
-    if (key.match(/^data\-/)) delete this._node.dataset[key.replace(/^data\-/, '')];
+    if (key.match(/^data\-/)) return this._node.removeAttribute(key);
     return (HTML_DOM_PROPS[key] || key) in this._node
       ? (delete this._node[HTML_DOM_PROPS[key] || key])
       : (delete this._props[key]);
@@ -795,7 +796,7 @@ var tagr = (function (Selection) {
       if (node.parentNode && node.parentNode.nodeType == 1) {
         throw new Error('Must remove element before appending elsewhere.');
       }
-      parent.insertBefore(node, right);
+      parent.insertBefore(node, right || null);
       if (typeof arg != 'string') {
         arg._attach(this);
       }
