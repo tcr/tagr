@@ -363,7 +363,9 @@ var tagr = (function (Selection) {
 
   TagrElement.prototype['insert'] = chainable(function (i, args) {
     if (typeof i != 'number') {
-      args = i;
+      if (i != null) {
+        args = i;
+      }
       i = -1;
     }
     if (i < 0) {
