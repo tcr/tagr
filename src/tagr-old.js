@@ -1191,6 +1191,9 @@ var tagr = (function() {
 
 if (typeof module !== 'undefined') {
   module.exports = tagr;
+  if (typeof window !== 'undefined') {
+    tagr._setEnvironment(window);
+  }
 } else {
   this.tagr = tagr;
   if (this.self) {
