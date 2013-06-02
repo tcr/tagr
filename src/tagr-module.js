@@ -749,7 +749,7 @@ var tagr = (function (Selection) {
     for (var i = 0; i < this._node.attributes.length; i++) {
       var attr = this._node.attributes[i];
       if (this._nopersist[attr.name] !== true) {
-        props[attr.name] = this._node[HTML_DOM_PROPS[attr.name] || attr.name];
+        props[attr.name] = attr.name.match(/^data\-/) ? this._node.getAttribute(attr.name) : this._node[HTML_DOM_PROPS[attr.name] || attr.name];
       }
     }
     //  3) Explicit persisting of DOM properties.
